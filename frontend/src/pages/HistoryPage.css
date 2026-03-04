@@ -1,0 +1,126 @@
+.history-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Filters */
+.history-filters {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    flex-wrap: wrap;
+}
+
+.hf-search {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.hf-search .hf-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--text-muted);
+}
+
+.hf-search input {
+    width: 100%;
+    padding: 10px 12px 10px 40px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.hf-search input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.12);
+}
+
+.hf-group {
+    display: flex;
+    gap: 10px;
+}
+
+.hf-date,
+.hf-select {
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: var(--font);
+}
+
+.hf-date:focus,
+.hf-select:focus {
+    border-color: var(--accent);
+}
+
+/* Table */
+.history-table-card {
+    overflow: hidden;
+}
+
+.pct-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pct-bar-wrap .pct-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--success));
+    transition: width 0.6s ease;
+    min-width: 4px;
+    max-width: 80px;
+}
+
+.pct-bar-wrap span {
+    font-size: 0.85rem;
+    font-weight: 500;
+    min-width: 45px;
+}
+
+.sample-id {
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+    color: var(--accent);
+    font-size: 0.85rem;
+}
+
+.history-count {
+    text-align: center;
+}
+
+/* ── Responsive ───────────────────── */
+@media (max-width: 768px) {
+    .history-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hf-group {
+        flex-direction: column;
+    }
+
+    .data-table th:nth-child(5),
+    .data-table td:nth-child(5) {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .data-table th:nth-child(3),
+    .data-table td:nth-child(3) {
+        display: none;
+    }
+}

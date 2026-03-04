@@ -1,0 +1,102 @@
+.layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.layout-main {
+    flex: 1;
+    margin-left: 260px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+}
+
+.top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 28px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.menu-btn {
+    display: none;
+}
+
+.top-bar-right {
+    margin-left: auto;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.user-role {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: capitalize;
+}
+
+.content {
+    flex: 1;
+    padding: 28px;
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* ── Responsive ──────────────────────── */
+@media (max-width: 768px) {
+    .layout-main {
+        margin-left: 0;
+    }
+
+    .menu-btn {
+        display: flex;
+    }
+
+    .top-bar {
+        padding: 10px 16px;
+    }
+
+    .content {
+        padding: 16px;
+    }
+
+    .user-details {
+        display: none;
+    }
+}

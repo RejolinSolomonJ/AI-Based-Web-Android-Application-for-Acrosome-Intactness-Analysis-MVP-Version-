@@ -1,0 +1,100 @@
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 260px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    transition: transform 300ms ease;
+}
+
+.sidebar-header {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: 12px 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 16px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 450;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    transition: all 200ms ease;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    font-family: var(--font);
+}
+
+.sidebar-link:hover {
+    background: var(--sidebar-active);
+    color: var(--text-primary);
+}
+
+.sidebar-link.active {
+    background: var(--sidebar-active);
+    color: var(--accent-dark);
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(110, 168, 254, 0.12);
+}
+
+.sidebar-link.active svg {
+    color: var(--accent);
+}
+
+.sidebar-footer {
+    padding: 12px 10px 20px;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.logout-btn:hover {
+    color: var(--error-text) !important;
+    background: var(--error-bg) !important;
+}
+
+.sidebar-overlay {
+    display: none;
+}
+
+/* ── Responsive ─────────────────────── */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .sidebar-open {
+        transform: translateX(0);
+    }
+
+    .sidebar-overlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.3);
+        z-index: 99;
+        backdrop-filter: blur(2px);
+    }
+}

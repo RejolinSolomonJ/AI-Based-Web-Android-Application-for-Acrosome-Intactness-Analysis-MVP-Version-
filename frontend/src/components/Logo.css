@@ -1,0 +1,62 @@
+.logo-container {
+    display: flex;
+    align-items: center;
+    user-select: none;
+}
+
+.logo-icon {
+    object-fit: contain;
+    filter: drop-shadow(0 2px 8px rgba(110, 168, 254, 0.25));
+    transition: transform 300ms ease;
+}
+
+.logo-container:hover .logo-icon {
+    animation: acrosomeSwirl 1.5s ease-in-out;
+}
+
+.logo-text {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    line-height: 1;
+}
+
+.logo-n {
+    font-weight: 800;
+    font-style: italic;
+    color: var(--accent);
+    font-size: 1.15em;
+}
+
+.logo-a {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.logo-rest {
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+@keyframes acrosomeSwirl {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+
+    25% {
+        transform: rotate(10deg) scale(1.08);
+    }
+
+    50% {
+        transform: rotate(0deg) scale(1.05);
+    }
+
+    75% {
+        transform: rotate(-10deg) scale(1.08);
+    }
+
+    100% {
+        transform: rotate(0deg) scale(1);
+    }
+}

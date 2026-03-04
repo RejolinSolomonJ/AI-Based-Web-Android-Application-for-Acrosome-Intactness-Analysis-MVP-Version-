@@ -1,0 +1,263 @@
+.upload-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* ── Patient Details ─────────────────── */
+.patient-details-card {
+    padding: 24px;
+}
+
+.patient-details-card h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    font-size: 1.1rem;
+}
+
+.pd-form-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-wrap svg {
+    position: absolute;
+    left: 12px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.input-wrap input {
+    width: 100%;
+    padding: 10px 12px 10px 36px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-family: var(--font);
+    transition: all 200ms ease;
+}
+
+.input-wrap input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.12);
+    outline: none;
+}
+
+/* ── Grid Uploads ────────────────────── */
+.grid-upload-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.grid-upload-box {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.gu-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.gu-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.gu-zone {
+    position: relative;
+    aspect-ratio: 16/9;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 300ms ease;
+    overflow: hidden;
+    background: var(--bg-alt);
+}
+
+.gu-zone:hover:not(.has-images) {
+    border-color: var(--accent);
+    background: rgba(110, 168, 254, 0.04);
+}
+
+.gu-zone.has-images {
+    border-style: solid;
+    border-color: var(--border-light);
+    background: var(--bg-alt);
+    cursor: default;
+}
+
+.gu-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.gu-icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(110, 168, 254, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    transition: transform 300ms ease;
+}
+
+.gu-zone:hover .gu-icon-wrap {
+    transform: scale(1.1);
+}
+
+.gu-empty p {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.gu-hint {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.gu-gallery {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    width: 100%;
+    height: 100%;
+    gap: 8px;
+    padding: 8px;
+}
+
+.gu-thumb-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #000;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.gu-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.gu-remove-thumb {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(232, 139, 139, 0.9);
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 200ms ease, transform 200ms;
+}
+
+.gu-thumb-wrap:hover .gu-remove-thumb {
+    opacity: 1;
+}
+
+.gu-remove-thumb:hover {
+    transform: scale(1.1);
+    background: #e55353;
+}
+
+.gu-add-more {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(110, 168, 254, 0.08);
+    border: 1.5px dashed var(--accent);
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--accent);
+    transition: all 200ms ease;
+}
+
+.gu-add-more:hover {
+    background: rgba(110, 168, 254, 0.15);
+}
+
+.gu-add-more span {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* ── Responsive ───────────────────── */
+@media (max-width: 1024px) {
+    .pd-form-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .grid-upload-container {
+        grid-template-columns: 1fr;
+    }
+
+    .gu-zone {
+        aspect-ratio: 21/9;
+    }
+}
+
+@media (max-width: 640px) {
+    .gu-zone {
+        aspect-ratio: 16/9;
+    }
+}
+
+@media (max-width: 480px) {
+    .pd-form-grid {
+        grid-template-columns: 1fr;
+    }
+}
