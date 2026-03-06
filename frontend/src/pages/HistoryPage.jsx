@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, FileText } from 'lucide-react';
-import { listAnalyses } from '../services/mockApi';
+import { listAnalyses } from '../services/api';
 import './HistoryPage.css';
 
 export default function HistoryPage() {

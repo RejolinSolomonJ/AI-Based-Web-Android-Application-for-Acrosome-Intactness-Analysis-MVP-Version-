@@ -19,16 +19,73 @@ from PIL import Image
 
 from app.config import settings
 
+# Register pillow-heif at import time so PIL can open HEIC files everywhere
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+    print("[INFO] pillow-heif registered successfully")
+except Exception as _heif_err:
+    print(f"[WARN] pillow-heif not available: {_heif_err}")
+
 TARGET_SIZE = (settings.IMAGE_SIZE, settings.IMAGE_SIZE)
 
 
+def _is_heic(data: bytes) -> bool:
+    """Detect HEIC/HEIF by checking the ftyp box in the file header."""
+    if len(data) < 12:
+        return False
+    ftyp_marker = data[4:8]
+    brand = data[8:12]
+    return ftyp_marker == b'ftyp' and brand in (b'heic', b'heix', b'heif', b'hevx', b'mif1', b'msf1')
+
+
+def _heic_bytes_to_jpeg(data: bytes) -> bytes:
+    """Convert HEIC/HEIF bytes to JPEG bytes using pillow-heif."""
+    img = Image.open(io.BytesIO(data)).convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=90)
+    return buf.getvalue()
+
+
 def load_image_from_bytes(image_bytes: bytes) -> np.ndarray:
-    """Load an image from raw bytes into a BGR numpy array."""
-    nparr = np.frombuffer(image_bytes, np.uint8)
-    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    if image is None:
-        raise ValueError("Could not decode image from bytes.")
-    return image
+    """
+    Load an image from raw bytes into a BGR numpy array.
+    Uses a 4-stage fallback strategy to handle HEIC, WebP and other exotic formats.
+    """
+    original_bytes = image_bytes
+
+    # Stage 1 – HEIC magic-byte detection → convert to JPEG first
+    if _is_heic(image_bytes):
+        try:
+            image_bytes = _heic_bytes_to_jpeg(image_bytes)
+        except Exception as e:
+            print(f"[WARN] HEIC→JPEG conversion failed ({e}), falling back to PIL direct open")
+            image_bytes = original_bytes  # restore for next stages
+
+    # Stage 2 – OpenCV direct decode (fast path for JPEG/PNG/BMP)
+    try:
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is not None:
+            return img
+    except Exception:
+        pass
+
+    # Stage 3 – PIL with pillow-heif registered (handles HEIC, WebP, TIFF, etc.)
+    try:
+        pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+    except Exception as e:
+        print(f"[WARN] PIL decode failed: {e}")
+
+    # Stage 4 – PIL on original bytes (last resort for unconverted HEIC)
+    try:
+        pil_img = Image.open(io.BytesIO(original_bytes)).convert("RGB")
+        return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+    except Exception as e:
+        raise ValueError(f"Could not decode image from bytes (all methods failed): {e}")
+
+
 
 
 def load_image_from_path(image_path: str) -> np.ndarray:
@@ -156,18 +213,13 @@ def preprocess_batch(images: list[np.ndarray]) -> np.ndarray:
 
 def validate_image_file(filename: str, file_size: int) -> tuple[bool, str]:
     """
-    Validate that an uploaded file is an acceptable image.
-
-    Returns:
-        (is_valid, error_message)
+    Validate uploaded file — accepts any extension, only rejects oversized files.
+    Actual image decoding handles format validation downstream.
     """
-    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-
-    if ext not in settings.allowed_extensions_list:
-        return False, f"File type '.{ext}' not allowed. Allowed: {settings.ALLOWED_EXTENSIONS}"
-
+    if file_size == 0:
+        return False, "Empty file."
     if file_size > settings.MAX_FILE_SIZE:
         max_mb = settings.MAX_FILE_SIZE / (1024 * 1024)
         return False, f"File size exceeds {max_mb:.0f} MB limit."
-
     return True, ""
+

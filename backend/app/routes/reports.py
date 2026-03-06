@@ -3,11 +3,13 @@ Report routes – generate and download PDF reports.
 """
 
 import os
+import glob
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 
+from app.config import settings
 from app.models.schemas import ReportGenerateRequest, ReportResponse
 from app.services.ai_service import get_analysis_by_id
 from app.services.pdf_service import generate_analysis_report
@@ -36,11 +38,20 @@ async def generate_report(request: ReportGenerateRequest):
         )
 
     try:
-        report_path = generate_analysis_report(
-            record=record,
-            title=request.title or "Acrosome Intactness Analysis Report",
-            include_images=request.include_images,
+        # Reuse pre-generated PDF if it already exists (fast path)
+        import glob
+        existing = glob.glob(
+            os.path.join(settings.REPORTS_DIR, f"report_{record.session_id}_*.pdf")
         )
+        if existing:
+            report_path = existing[0]
+            print(f"[OK] Reusing pre-generated PDF: {report_path}")
+        else:
+            report_path = generate_analysis_report(
+                record=record,
+                title=request.title or "Acrosome Intactness Analysis Report",
+                include_images=request.include_images,
+            )
 
         filename = os.path.basename(report_path)
 

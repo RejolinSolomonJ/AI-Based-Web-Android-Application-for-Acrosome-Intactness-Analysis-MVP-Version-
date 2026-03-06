@@ -1,163 +1,261 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Download, Save, Plus, FileText, Calendar, User, Hash } from 'lucide-react';
-import Logo from '../components/Logo';
+import { useMemo, useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Download, Plus, CheckCircle, XCircle, Clock, Hash, User, FlaskConical, Loader2, AlertCircle } from 'lucide-react';
+import { analyzeImages, generateReport } from '../services/api';
 import './ReportPage.css';
-
-function generateReportData() {
-    const grids = [];
-    let totalIntact = 0;
-    for (let g = 0; g < 4; g++) {
-        const intact = Math.floor(Math.random() * 3) + 1;
-        totalIntact += intact;
-        grids.push({ id: g + 1, intact, damaged: 4 - intact });
-    }
-    return {
-        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        doctor: 'Dr. Priya Sharma',
-        sampleId: 'SMP-2048',
-        patientId: 'PT-001',
-        total: 16,
-        totalIntact,
-        totalDamaged: 16 - totalIntact,
-        intactPct: Math.round((totalIntact / 16) * 100),
-        grids,
-    };
-}
 
 export default function ReportPage() {
     const navigate = useNavigate();
-    const report = useMemo(() => generateReportData(), []);
-    const [saving, setSaving] = useState(false);
+    const location = useLocation();
 
-    const handleSave = () => {
-        setSaving(true);
-        setTimeout(() => setSaving(false), 1500);
+    // Two entry modes:
+    // 1. { analyzing: true, grids, patientDetails } – came from ProcessingPage, need to call API
+    // 2. { analysis } – legacy / direct navigation with result already in state
+    const { analyzing, grids, patientDetails, analysis: initialAnalysis } = location.state || {};
+
+    const [analysis, setAnalysis] = useState(initialAnalysis || null);
+    const [apiLoading, setApiLoading] = useState(!!analyzing);
+    const [apiError, setApiError] = useState(null);
+    const [downloading, setDownloading] = useState(false);
+
+    // ── Run API call when navigated from ProcessingPage ──
+    useEffect(() => {
+        if (!analyzing) return;
+
+        async function run() {
+            try {
+                const files = Object.values(grids).flat().map(item => item.file);
+                const result = await analyzeImages(
+                    files,
+                    patientDetails.sampleId,
+                    patientDetails.patientId,
+                    `Patient: ${patientDetails.patientName}`
+                );
+                setAnalysis(result);
+            } catch (err) {
+                console.error('Analysis error:', err);
+                setApiError(err.message || 'Analysis failed. Please try again.');
+            } finally {
+                setApiLoading(false);
+            }
+        }
+        run();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const report = useMemo(() => {
+        if (!analysis) return null;
+        const dateObj = new Date(analysis.created_at);
+        return {
+            date: dateObj.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }),
+            time: dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            sessionId: analysis.session_id,
+            sampleId: analysis.sample_id || '—',
+            patientId: analysis.patient_id || '—',
+            total: analysis.total_images,
+            intact: analysis.intact_count,
+            damaged: analysis.damaged_count,
+            intactPct: analysis.intact_percentage,
+            damagedPct: analysis.damaged_percentage,
+            avgConf: analysis.average_confidence,
+            processingMs: analysis.total_processing_time_ms,
+            results: analysis.image_results || [],
+        };
+    }, [analysis]);
+
+    const handleDownload = async () => {
+        if (!analysis?.id) return;
+        setDownloading(true);
+        try {
+            const data = await generateReport(analysis.id);
+            if (data.download_url) {
+                window.open(`http://localhost:8000${data.download_url}`, '_blank');
+            }
+        } catch (err) {
+            alert('Failed to download PDF: ' + err.message);
+        } finally {
+            setDownloading(false);
+        }
     };
+
+    // ── No state at all ──
+    if (!analyzing && !initialAnalysis) {
+        return (
+            <div className="report-page animate-fade-in">
+                <div className="card" style={{ maxWidth: 480, margin: '100px auto', textAlign: 'center', padding: 40 }}>
+                    <h2 className="text-muted">No Analysis Data</h2>
+                    <p>Please perform an analysis first.</p>
+                    <button className="btn btn-primary" onClick={() => navigate('/upload')} style={{ marginTop: 20 }}>
+                        Start New Analysis
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="report-page animate-fade-in">
+            {/* ── Page Header ── */}
             <div className="page-header">
                 <div>
                     <h1>Diagnostic Report</h1>
-                    <p className="text-muted text-sm">Professional medical report for this analysis</p>
+                    <p className="text-muted text-sm">
+                        {apiLoading ? 'AI is analysing your images… this may take up to 60 seconds' : 'AI-generated acrosome intactness analysis'}
+                    </p>
                 </div>
                 <div className="flex gap-3">
                     <button className="btn btn-secondary" onClick={() => navigate('/upload')}>
                         <Plus size={16} /> New Analysis
                     </button>
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleDownload}
+                        disabled={downloading || apiLoading || !!apiError}
+                        title={apiLoading ? 'Waiting for analysis to complete…' : ''}
+                    >
+                        {downloading
+                            ? <><Loader2 size={16} className="animate-spin" /> Preparing…</>
+                            : apiLoading
+                                ? <><Loader2 size={16} className="animate-spin" /> Analysing…</>
+                                : <><Download size={16} /> Download PDF</>}
+                    </button>
                 </div>
             </div>
 
-            <div className="report-container card animate-fade-in-up">
-                {/* Report Header */}
-                <div className="report-header">
-                    <div className="report-logo">
-                        <Logo size="md" />
-                    </div>
-                    <h2>AI Diagnostic Report</h2>
-                    <p className="report-subtitle">Acrosome Intactness Analysis</p>
+            {/* ── Error state ── */}
+            {apiError && (
+                <div className="card" style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center', padding: 36 }}>
+                    <AlertCircle size={40} style={{ color: 'var(--error)', marginBottom: 14 }} />
+                    <h2 style={{ color: 'var(--error)' }}>Analysis Error</h2>
+                    <p>{apiError}</p>
+                    <button className="btn btn-secondary" onClick={() => navigate('/upload')} style={{ marginTop: 18 }}>
+                        Go Back
+                    </button>
                 </div>
+            )}
 
-                {/* Report Meta */}
-                <div className="report-meta">
-                    <div className="rm-item">
-                        <Calendar size={16} />
-                        <div>
-                            <span className="rm-label">Date & Time</span>
-                            <span className="rm-value">{report.date} · {report.time}</span>
-                        </div>
+            {/* ── Loading skeleton ── */}
+            {apiLoading && !apiError && (
+                <div className="rpt-doc glass-card animate-fade-in-up">
+                    <div className="rpt-band">
+                        <span className="rpt-band-title">Acrosome Intactness Analysis Report</span>
+                        <span className="rpt-band-sub">NexAcro AI Clinical Platform</span>
                     </div>
-                    <div className="rm-item">
-                        <User size={16} />
-                        <div>
-                            <span className="rm-label">Doctor</span>
-                            <span className="rm-value">{report.doctor}</span>
-                        </div>
-                    </div>
-                    <div className="rm-item">
-                        <Hash size={16} />
-                        <div>
-                            <span className="rm-label">Sample ID</span>
-                            <span className="rm-value">{report.sampleId}</span>
-                        </div>
-                    </div>
-                    <div className="rm-item">
-                        <FileText size={16} />
-                        <div>
-                            <span className="rm-label">Patient ID</span>
-                            <span className="rm-value">{report.patientId}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Summary Section */}
-                <div className="report-section">
-                    <h3>Analysis Summary</h3>
-                    <div className="report-summary-grid">
-                        <div className="rs-card">
-                            <span className="rs-num">{report.total}</span>
-                            <span className="rs-txt">Total Acrosomes</span>
-                        </div>
-                        <div className="rs-card success">
-                            <span className="rs-num">{report.totalIntact}</span>
-                            <span className="rs-txt">Intact</span>
-                        </div>
-                        <div className="rs-card error">
-                            <span className="rs-num">{report.totalDamaged}</span>
-                            <span className="rs-txt">Damaged</span>
-                        </div>
-                        <div className="rs-card highlight">
-                            <span className="rs-num">{report.intactPct}%</span>
-                            <span className="rs-txt">Intact Percentage</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Grid-wise Table */}
-                <div className="report-section">
-                    <h3>Grid-wise Results</h3>
-                    <table className="data-table report-table">
-                        <thead>
-                            <tr>
-                                <th>Grid</th>
-                                <th>Total</th>
-                                <th>Intact</th>
-                                <th>Damaged</th>
-                                <th>Intact %</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {report.grids.map(g => (
-                                <tr key={g.id}>
-                                    <td><strong>Grid {g.id}</strong></td>
-                                    <td>4</td>
-                                    <td><span className="text-success">{g.intact}</span></td>
-                                    <td><span className="text-error">{g.damaged}</span></td>
-                                    <td>{Math.round((g.intact / 4) * 100)}%</td>
-                                </tr>
+                    <div style={{ padding: '48px 32px', textAlign: 'center' }}>
+                        <Loader2 size={48} className="animate-spin" style={{ color: 'var(--accent)', marginBottom: 20 }} />
+                        <h2 style={{ marginBottom: 8 }}>Analysing Images…</h2>
+                        <p className="text-muted">The AI is processing your images on the server.</p>
+                        <p className="text-muted text-sm" style={{ marginTop: 8 }}>
+                            HEIC / large images may take up to 60 seconds. Results will appear here automatically.
+                        </p>
+                        <div className="rpt-skeleton-bars" style={{ marginTop: 32 }}>
+                            {[220, 160, 200, 140].map((w, i) => (
+                                <div key={i} className="skeleton-bar" style={{ width: w }} />
                             ))}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
                 </div>
+            )}
 
-                {/* Actions */}
-                <div className="report-actions">
-                    <button className="btn btn-primary btn-lg" onClick={() => alert('PDF download simulated!')}>
-                        <Download size={18} /> Download PDF
-                    </button>
-                    <button className="btn btn-secondary btn-lg" onClick={handleSave} disabled={saving}>
-                        <Save size={18} /> {saving ? 'Saving...' : 'Save to Records'}
-                    </button>
-                </div>
+            {/* ── Full report ── */}
+            {report && !apiError && (
+                <div className="rpt-doc glass-card animate-fade-in-up">
+                    {/* Blue header band */}
+                    <div className="rpt-band">
+                        <span className="rpt-band-title">Acrosome Intactness Analysis Report</span>
+                        <span className="rpt-band-sub">NexAcro AI Clinical Platform</span>
+                    </div>
 
-                {/* Footer */}
-                <div className="report-footer">
-                    <p>This report was generated by NexAcro AI Clinical Platform.</p>
-                    <p>Results should be verified by a qualified medical professional before clinical decision-making.</p>
+                    {/* Section 1 – Session Info */}
+                    <div className="rpt-section">
+                        <div className="rpt-section-title">1. Session Information</div>
+                        <div className="rpt-kv-grid">
+                            <div className="rpt-kv"><span className="rpt-kv-label"><Hash size={13} /> Session ID</span><span className="rpt-kv-val mono">{report.sessionId}</span></div>
+                            <div className="rpt-kv"><span className="rpt-kv-label"><Clock size={13} /> Date &amp; Time</span><span className="rpt-kv-val">{report.date} · {report.time}</span></div>
+                            <div className="rpt-kv"><span className="rpt-kv-label"><FlaskConical size={13} /> Sample ID</span><span className="rpt-kv-val">{report.sampleId}</span></div>
+                            <div className="rpt-kv"><span className="rpt-kv-label"><User size={13} /> Patient ID</span><span className="rpt-kv-val">{report.patientId}</span></div>
+                            <div className="rpt-kv"><span className="rpt-kv-label">Total Images</span><span className="rpt-kv-val">{report.total}</span></div>
+                            <div className="rpt-kv"><span className="rpt-kv-label">Processing Time</span><span className="rpt-kv-val">{report.processingMs?.toFixed(0)} ms</span></div>
+                        </div>
+                    </div>
+
+                    {/* Section 2 – Summary */}
+                    <div className="rpt-section">
+                        <div className="rpt-section-title">2. Analysis Summary</div>
+                        <div className="rpt-big-nums">
+                            <div className="rpt-big-num intact">
+                                <span className="rpt-pct">{report.intactPct}%</span>
+                                <span className="rpt-pct-label">Intact</span>
+                            </div>
+                            <div className="rpt-big-num damaged">
+                                <span className="rpt-pct">{report.damagedPct}%</span>
+                                <span className="rpt-pct-label">Damaged</span>
+                            </div>
+                        </div>
+                        <div className="rpt-bar-wrap">
+                            <div className="rpt-bar-track">
+                                <div className="rpt-bar-fill" style={{ width: `${report.intactPct}%` }} />
+                            </div>
+                            <div className="rpt-bar-labels">
+                                <span className="text-success">■ Intact {report.intactPct}%</span>
+                                <span className="text-error">■ Damaged {report.damagedPct}%</span>
+                            </div>
+                        </div>
+                        <div className="rpt-stats-grid">
+                            {[
+                                ['Total Analysed', report.total],
+                                ['Intact Count', report.intact],
+                                ['Damaged Count', report.damaged],
+                                ['Avg Confidence', `${(report.avgConf * 100).toFixed(1)}%`],
+                            ].map(([lbl, val]) => (
+                                <div className="rpt-stat" key={lbl}>
+                                    <span className="rpt-stat-label">{lbl}</span>
+                                    <span className="rpt-stat-val">{val}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Section 3 – Per-Image Table */}
+                    <div className="rpt-section">
+                        <div className="rpt-section-title">3. Individual Image Results</div>
+                        <table className="rpt-table">
+                            <thead>
+                                <tr>
+                                    <th style={{ width: '5%' }}>#</th>
+                                    <th style={{ width: '38%' }}>Filename</th>
+                                    <th style={{ width: '20%' }}>Classification</th>
+                                    <th style={{ width: '18%' }}>Confidence</th>
+                                    <th style={{ width: '19%' }}>Proc. Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {report.results.map((r, i) => (
+                                    <tr key={i} className={i % 2 === 0 ? 'even' : ''}>
+                                        <td style={{ textAlign: 'center' }}>{i + 1}</td>
+                                        <td className="mono" style={{ fontSize: '0.78rem' }}>
+                                            {r.original_filename?.length > 32 ? r.original_filename.slice(0, 29) + '…' : r.original_filename}
+                                        </td>
+                                        <td style={{ textAlign: 'center' }}>
+                                            {r.classification?.toLowerCase() === 'intact'
+                                                ? <span className="badge-cls intact"><CheckCircle size={13} /> Intact</span>
+                                                : <span className="badge-cls damaged"><XCircle size={13} /> Damaged</span>}
+                                        </td>
+                                        <td style={{ textAlign: 'center' }}>{(r.confidence * 100).toFixed(1)}%</td>
+                                        <td style={{ textAlign: 'center' }}>{r.processing_time_ms?.toFixed(1)} ms</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Disclaimer */}
+                    <div className="rpt-disclaimer">
+                        <strong>Disclaimer:</strong> This report was generated by an AI-based analysis system and is intended to assist clinical
+                        decision-making only. Results should be verified by a qualified medical specialist before use in diagnosis or treatment.
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

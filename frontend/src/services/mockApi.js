@@ -20,6 +20,20 @@ export async function loginApi(email, password) {
     };
 }
 
+export async function registerApi(username, email, password, full_name) {
+    await delay(800);
+    if (!username || !email || !password) throw new Error('Fields missing');
+    return {
+        access_token: 'mock-jwt-token-' + Date.now(),
+        token_type: 'bearer',
+        user_id: 'usr_new',
+        username: username,
+        role: 'doctor',
+        full_name: full_name || username,
+        email: email,
+    };
+}
+
 export async function getUserProfile() {
     await delay(300);
     return {

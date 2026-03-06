@@ -12,6 +12,8 @@ AI Analysis Service – orchestrates the full analysis pipeline:
 import os
 import time
 import uuid
+import traceback
+from pathlib import Path
 from typing import Optional
 
 from fastapi import UploadFile
@@ -56,18 +58,26 @@ async def analyze_images(
 
         is_valid, error_msg = validate_image_file(file.filename, file_size)
         if not is_valid:
-            # Skip invalid files but log the issue
             print(f"[WARN] Skipped invalid file: {file.filename} - {error_msg}")
             continue
 
-        # Generate unique filename
-        ext = file.filename.rsplit(".", 1)[-1].lower()
+        # Generate safe unique filename (no spaces, ASCII-only)
+        ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "bin"
+        # Treat HEIC/HEIF as JPG since we convert on decode
+        if ext in ("heic", "heif"):
+            ext = "jpg"
         unique_name = f"{session_id}_{uuid.uuid4().hex[:8]}.{ext}"
-        save_path = os.path.join(settings.UPLOAD_DIR, unique_name)
+        save_path = str(Path(settings.UPLOAD_DIR) / unique_name)
 
-        # Save to disk
-        with open(save_path, "wb") as f:
-            f.write(content)
+        try:
+            os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+            with open(save_path, "wb") as f:
+                f.write(content)
+            print(f"[OK] Saved: {unique_name} ({file_size} bytes)")
+        except Exception as save_err:
+            print(f"[ERROR] Could not save {unique_name}: {save_err}")
+            traceback.print_exc()
+            continue
 
         all_bytes.append(content)
         file_metadata.append({
@@ -80,7 +90,12 @@ async def analyze_images(
         raise ValueError("No valid images were provided for analysis.")
 
     # ── Step 2: Run batch prediction ─────────────────────────
-    predictions = predict_batch(all_bytes)
+    try:
+        predictions = predict_batch(all_bytes)
+    except Exception as pred_err:
+        print(f"[ERROR] predict_batch failed: {pred_err}")
+        traceback.print_exc()
+        raise
 
     # ── Step 3: Build per-image results ──────────────────────
     for meta, pred in zip(file_metadata, predictions):
@@ -125,6 +140,14 @@ async def analyze_images(
 
     await record.insert()
     print(f"[OK] Analysis saved: {session_id} | {total} images | {intact_pct}% intact")
+
+    # ── Step 6: Pre-generate PDF so download is instant ──────
+    try:
+        from app.services.pdf_service import generate_analysis_report
+        generate_analysis_report(record)
+        print(f"[OK] PDF pre-generated for {session_id}")
+    except Exception as pdf_err:
+        print(f"[WARN] PDF pre-generation failed (non-fatal): {pdf_err}")
 
     return record
 

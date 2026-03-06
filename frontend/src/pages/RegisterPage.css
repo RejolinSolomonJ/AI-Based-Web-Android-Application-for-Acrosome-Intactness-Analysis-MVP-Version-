@@ -1,0 +1,17 @@
+/* Reuse all styles from LoginPage, just need a few additions. We import LoginPage.css in the component or we can just redefine some specifics if needed. We'll simply use the same classes! */
+.register-link-container {
+    margin-top: 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.register-link {
+    color: var(--primary-accent);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.register-link:hover {
+    text-decoration: underline;
+}

@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, UserCircle } from 'lucide-react';
 import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { loginApi } from '../services/api';
+import { registerApi } from '../services/api';
 import { Sun, Moon } from 'lucide-react';
-import './LoginPage.css';
+import './RegisterPage.css';
 
-export default function LoginPage() {
+export default function RegisterPage() {
+    const [username, setUsername] = useState('');
+    const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPass, setShowPass] = useState(false);
-    const [remember, setRemember] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const { login } = useAuth();
@@ -24,14 +25,14 @@ export default function LoginPage() {
         setError('');
         setLoading(true);
         try {
-            const data = await loginApi(email, password);
+            const data = await registerApi(username, email, password, fullName);
             login(
-                { id: data.user_id, username: data.username, role: data.role, email, full_name: data.full_name },
+                { id: data.user_id, username: data.username, role: data.role, email, full_name: fullName },
                 data.access_token
             );
             navigate('/dashboard');
         } catch (err) {
-            setError(err.message || 'Login failed');
+            setError(err.message || 'Registration failed');
         } finally {
             setLoading(false);
         }
@@ -64,10 +65,40 @@ export default function LoginPage() {
             <div className="login-card glass-card animate-fade-in-up">
                 <div className="login-header">
                     <Logo size="lg" />
-                    <p className="login-tagline">AI-Based Acrosome Intactness Analysis for IVF Excellence</p>
+                    <p className="login-tagline">Create your professional account</p>
                 </div>
 
                 <form className="login-form" onSubmit={handleSubmit}>
+                    <div className="form-field">
+                        <label htmlFor="username">Username</label>
+                        <div className="input-with-icon">
+                            <User size={18} className="input-icon" />
+                            <input
+                                id="username"
+                                type="text"
+                                placeholder="drsharma"
+                                value={username}
+                                onChange={e => setUsername(e.target.value)}
+                                required
+                                minLength={3}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="form-field">
+                        <label htmlFor="fullName">Full Name</label>
+                        <div className="input-with-icon">
+                            <UserCircle size={18} className="input-icon" />
+                            <input
+                                id="fullName"
+                                type="text"
+                                placeholder="Dr. Priya Sharma"
+                                value={fullName}
+                                onChange={e => setFullName(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
                     <div className="form-field">
                         <label htmlFor="email">Email Address</label>
                         <div className="input-with-icon">
@@ -90,10 +121,11 @@ export default function LoginPage() {
                             <input
                                 id="password"
                                 type={showPass ? 'text' : 'password'}
-                                placeholder="Enter your password"
+                                placeholder="Create a password"
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                                 required
+                                minLength={6}
                             />
                             <button
                                 type="button"
@@ -103,17 +135,6 @@ export default function LoginPage() {
                                 {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
-                    </div>
-
-                    <div className="login-options">
-                        <label className="remember-me">
-                            <input
-                                type="checkbox"
-                                checked={remember}
-                                onChange={e => setRemember(e.target.checked)}
-                            />
-                            <span>Remember me</span>
-                        </label>
                     </div>
 
                     {error && <div className="login-error">{error}</div>}
@@ -126,13 +147,13 @@ export default function LoginPage() {
                         {loading ? (
                             <span className="spinner" />
                         ) : (
-                            'Sign In'
+                            'Sign Up'
                         )}
                     </button>
 
-                    <div className="register-link-container" style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                        <span>Don't have an account? </span>
-                        <Link to="/register" style={{ color: 'var(--primary-accent)', fontWeight: 500, textDecoration: 'none' }}>Sign Up</Link>
+                    <div className="register-link-container">
+                        <span>Already have an account? </span>
+                        <Link to="/login" className="register-link">Sign In</Link>
                     </div>
                 </form>
 
