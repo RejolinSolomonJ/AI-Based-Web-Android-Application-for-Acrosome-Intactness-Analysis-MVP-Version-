@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     # ── File Upload ──────────────────────────────────────────
     UPLOAD_DIR: str = str(BASE_DIR / "uploads")
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10 MB
-    ALLOWED_EXTENSIONS: str = "jpg,jpeg,png,bmp,tiff"
+    ALLOWED_EXTENSIONS: str = "jpg,jpeg,png,bmp,tiff,heic,heif"
 
     # ── Reports ──────────────────────────────────────────────
     REPORTS_DIR: str = str(BASE_DIR / "reports")

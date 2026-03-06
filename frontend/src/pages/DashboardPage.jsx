@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Area, AreaChart } from 'recharts';
 import { Microscope, ImagePlus, TrendingUp, Activity, Plus } from 'lucide-react';
 import StatsCard from '../components/StatsCard';
-import { getAnalyticsSummary, getDetailedAnalytics, listAnalyses } from '../services/mockApi';
+import { getAnalyticsSummary, getDetailedAnalytics, listAnalyses } from '../services/api';
 import './DashboardPage.css';
 
 const PIE_COLORS = ['#7BC68F', '#E88B8B'];

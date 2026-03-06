@@ -22,13 +22,47 @@ from app.config import settings
 TARGET_SIZE = (settings.IMAGE_SIZE, settings.IMAGE_SIZE)
 
 
+def _is_heic(data: bytes) -> bool:
+    """Detect HEIC/HEIF by checking the ftyp box in the file header."""
+    # HEIC files have 'ftyp' at offset 4 and 'heic'/'heif'/'mif1'/'msf1' at offset 8
+    if len(data) < 12:
+        return False
+    ftyp_marker = data[4:8]
+    brand = data[8:12]
+    return ftyp_marker == b'ftyp' and brand in (b'heic', b'heix', b'heif', b'hevx', b'mif1', b'msf1')
+
+
+def _heic_bytes_to_jpeg(data: bytes) -> bytes:
+    """Convert HEIC/HEIF bytes to JPEG bytes using pillow-heif."""
+    try:
+        from pillow_heif import register_heif_opener
+        register_heif_opener()
+        img = Image.open(io.BytesIO(data)).convert("RGB")
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=90)
+        return buf.getvalue()
+    except Exception as e:
+        raise ValueError(f"Failed to convert HEIC image: {e}")
+
+
 def load_image_from_bytes(image_bytes: bytes) -> np.ndarray:
-    """Load an image from raw bytes into a BGR numpy array."""
+    """Load an image from raw bytes into a BGR numpy array.
+    Automatically converts HEIC/HEIF to JPEG if needed."""
+    # Auto-convert HEIC before passing to OpenCV (which doesn't support HEIC)
+    if _is_heic(image_bytes):
+        image_bytes = _heic_bytes_to_jpeg(image_bytes)
+
     nparr = np.frombuffer(image_bytes, np.uint8)
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if image is None:
-        raise ValueError("Could not decode image from bytes.")
+        # Fallback: try PIL for formats OpenCV struggles with
+        try:
+            pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            image = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+        except Exception:
+            raise ValueError("Could not decode image from bytes.")
     return image
+
 
 
 def load_image_from_path(image_path: str) -> np.ndarray:
@@ -162,12 +196,20 @@ def validate_image_file(filename: str, file_size: int) -> tuple[bool, str]:
         (is_valid, error_message)
     """
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    allowed = settings.allowed_extensions_list
 
-    if ext not in settings.allowed_extensions_list:
-        return False, f"File type '.{ext}' not allowed. Allowed: {settings.ALLOWED_EXTENSIONS}"
+    print(f"[VALIDATE] file='{filename}' ext='{ext}' allowed={allowed}")
+
+    if ext not in allowed:
+        msg = f"File type '.{ext}' not allowed. Allowed: {settings.ALLOWED_EXTENSIONS}"
+        print(f"[VALIDATE] REJECTED: {msg}")
+        return False, msg
 
     if file_size > settings.MAX_FILE_SIZE:
         max_mb = settings.MAX_FILE_SIZE / (1024 * 1024)
-        return False, f"File size exceeds {max_mb:.0f} MB limit."
+        msg = f"File size exceeds {max_mb:.0f} MB limit."
+        print(f"[VALIDATE] REJECTED: {msg}")
+        return False, msg
 
+    print(f"[VALIDATE] ACCEPTED: {filename}")
     return True, ""

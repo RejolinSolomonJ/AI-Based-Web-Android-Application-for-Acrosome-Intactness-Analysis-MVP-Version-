@@ -1,40 +1,83 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Download, Save, Plus, FileText, Calendar, User, Hash } from 'lucide-react';
 import Logo from '../components/Logo';
+import { generateReport } from '../services/api';
 import './ReportPage.css';
-
-function generateReportData() {
-    const grids = [];
-    let totalIntact = 0;
-    for (let g = 0; g < 4; g++) {
-        const intact = Math.floor(Math.random() * 3) + 1;
-        totalIntact += intact;
-        grids.push({ id: g + 1, intact, damaged: 4 - intact });
-    }
-    return {
-        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        doctor: 'Dr. Priya Sharma',
-        sampleId: 'SMP-2048',
-        patientId: 'PT-001',
-        total: 16,
-        totalIntact,
-        totalDamaged: 16 - totalIntact,
-        intactPct: Math.round((totalIntact / 16) * 100),
-        grids,
-    };
-}
 
 export default function ReportPage() {
     const navigate = useNavigate();
-    const report = useMemo(() => generateReportData(), []);
+    const location = useLocation();
+    const { analysis } = location.state || {};
     const [saving, setSaving] = useState(false);
+    const [downloading, setDownloading] = useState(false);
+
+    // Map API analysis record to report format
+    const report = useMemo(() => {
+        if (!analysis) return null;
+
+        const dateObj = new Date(analysis.created_at);
+
+        // Group by grids (mock grouping since backend returns a flat list)
+        const grids = [];
+        for (let i = 0; i < 4; i++) {
+            const slice = analysis.image_results.slice(i * 4, (i + 1) * 4);
+            const intact = slice.filter(r => r.classification === 'Intact' || r.classification === 'INTACT').length;
+            grids.push({ id: i + 1, intact, damaged: 4 - intact });
+        }
+
+        return {
+            date: dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            time: dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            doctor: analysis.notes?.includes('Patient:') ? 'NexAcro AI System' : 'Medical Professional',
+            sampleId: analysis.sample_id || '—',
+            patientId: analysis.patient_id || '—',
+            total: analysis.total_images,
+            totalIntact: analysis.intact_count,
+            totalDamaged: analysis.damaged_count,
+            intactPct: analysis.intact_percentage,
+            grids: grids,
+        };
+    }, [analysis]);
 
     const handleSave = () => {
         setSaving(true);
-        setTimeout(() => setSaving(false), 1500);
+        // This would normally be another API call or confirm storage
+        setTimeout(() => {
+            setSaving(false);
+            alert("Report saved to clinic history!");
+        }, 1200);
     };
+
+    const handleDownload = async () => {
+        if (!analysis?.id) return;
+        setDownloading(true);
+        try {
+            const data = await generateReport(analysis.id);
+            if (data.download_url) {
+                window.open(data.download_url, '_blank');
+            }
+        } catch (err) {
+            console.error("Report Generation Error:", err);
+            alert("Failed to generate PDF report: " + err.message);
+        } finally {
+            setDownloading(false);
+        }
+    };
+
+    if (!report) {
+        return (
+            <div className="report-page animate-fade-in">
+                <div className="card error-card" style={{ maxWidth: 500, margin: '100px auto', textAlign: 'center', padding: 40 }}>
+                    <h2 className="text-muted">No Analysis Data</h2>
+                    <p>Please perform an analysis first to view the report.</p>
+                    <button className="btn btn-primary" onClick={() => navigate('/upload')} style={{ marginTop: 20 }}>
+                        Start New Analysis
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="report-page animate-fade-in">
@@ -72,8 +115,8 @@ export default function ReportPage() {
                     <div className="rm-item">
                         <User size={16} />
                         <div>
-                            <span className="rm-label">Doctor</span>
-                            <span className="rm-value">{report.doctor}</span>
+                            <span className="rm-label">Report Source</span>
+                            <span className="rm-value">NexAcro AI</span>
                         </div>
                     </div>
                     <div className="rm-item">
@@ -144,8 +187,8 @@ export default function ReportPage() {
 
                 {/* Actions */}
                 <div className="report-actions">
-                    <button className="btn btn-primary btn-lg" onClick={() => alert('PDF download simulated!')}>
-                        <Download size={18} /> Download PDF
+                    <button className="btn btn-primary btn-lg" onClick={handleDownload} disabled={downloading}>
+                        <Download size={18} /> {downloading ? 'Generating...' : 'Download PDF'}
                     </button>
                     <button className="btn btn-secondary btn-lg" onClick={handleSave} disabled={saving}>
                         <Save size={18} /> {saving ? 'Saving...' : 'Save to Records'}

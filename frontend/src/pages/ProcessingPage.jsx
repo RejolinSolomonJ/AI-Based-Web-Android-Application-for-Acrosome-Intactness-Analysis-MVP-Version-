@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Check, Loader2, Upload, Settings, Grid3X3, ScanSearch, Crop,
-    Layers, Hash, Percent, ImagePlus, FileText, ArrowRight
+    Layers, Hash, Percent, ImagePlus, FileText, ArrowRight, AlertCircle
 } from 'lucide-react';
-import { getPipelineSteps } from '../services/mockApi';
+import { getPipelineSteps, analyzeImages } from '../services/api';
 import CircularProgress from '../components/CircularProgress';
 import './ProcessingPage.css';
 
@@ -14,51 +14,110 @@ const stepIcons = {
     image: ImagePlus, 'file-text': FileText,
 };
 
-/* ── Generate mock classification data ── */
-function generateResults() {
-    const grids = [];
-    let totalIntact = 0;
-    for (let g = 0; g < 4; g++) {
-        const acrosomes = [];
-        for (let a = 0; a < 4; a++) {
-            const isIntact = Math.random() > 0.28;
-            if (isIntact) totalIntact++;
-            acrosomes.push({
-                id: `A${g * 4 + a + 1}`,
-                isIntact,
-                confidence: Math.round((0.82 + Math.random() * 0.17) * 100) / 100,
-            });
-        }
-        grids.push({ id: g + 1, acrosomes, intactCount: acrosomes.filter(a => a.isIntact).length });
-    }
-    return { grids, totalIntact, total: 16, intactPct: Math.round((totalIntact / 16) * 100) };
-}
-
-/* ── Grid data ── */
-const gridMeta = [
-    { id: 1, label: 'Grid 1', confidence: 0.94 },
-    { id: 2, label: 'Grid 2', confidence: 0.91 },
-    { id: 3, label: 'Grid 3', confidence: 0.88 },
-    { id: 4, label: 'Grid 4', confidence: 0.96 },
-];
-
 export default function ProcessingPage() {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { grids, patientDetails } = location.state || {};
+
     const [currentStep, setCurrentStep] = useState(0);
     const [activeTab, setActiveTab] = useState('pipeline');
-    const steps = getPipelineSteps();
-    const navigate = useNavigate();
-    const results = useMemo(() => generateResults(), []);
+    const [apiResult, setApiResult] = useState(null);
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    /* Auto-advance pipeline steps */
+    const steps = getPipelineSteps();
+
+    // ── Call API on Mount ──
+    useEffect(() => {
+        if (!grids || !patientDetails) {
+            setError("No data provided for analysis. Please go back to Upload page.");
+            setLoading(false);
+            return;
+        }
+
+        async function performAnalysis() {
+            try {
+                // Flatten all files from grids
+                const filesToUpload = Object.values(grids).flat().map(item => item.file);
+
+                const result = await analyzeImages(
+                    filesToUpload,
+                    patientDetails.sampleId,
+                    patientDetails.patientId,
+                    `Patient: ${patientDetails.patientName}`
+                );
+
+                setApiResult(result);
+            } catch (err) {
+                console.error("Analysis Error:", err);
+                setError(err.message || "An unexpected error occurred during analysis.");
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        performAnalysis();
+    }, [grids, patientDetails]);
+
+    // ── Pipeline Animation ──
     useEffect(() => {
         if (activeTab !== 'pipeline') return;
-        if (currentStep < steps.length) {
-            const timer = setTimeout(() => setCurrentStep(prev => prev + 1), 1200);
+
+        // Advance steps every 1s, but wait at the last step for API if not done
+        if (currentStep < steps.length - 1) {
+            const timer = setTimeout(() => setCurrentStep(prev => prev + 1), 1000);
+            return () => clearTimeout(timer);
+        } else if (currentStep === steps.length - 1 && apiResult) {
+            // Finish when API is done
+            const timer = setTimeout(() => setCurrentStep(steps.length), 500);
             return () => clearTimeout(timer);
         }
-    }, [currentStep, steps.length, activeTab]);
+    }, [currentStep, steps.length, activeTab, apiResult]);
 
     const pipelineDone = currentStep >= steps.length;
+
+    // Map API result to the format expected by the UI
+    const results = useMemo(() => {
+        if (!apiResult) return null;
+
+        // Group image results into 4 grids (assuming we uploaded 16 images)
+        const gridsData = [];
+        for (let i = 0; i < 4; i++) {
+            const gridId = i + 1;
+            const slice = apiResult.image_results.slice(i * 4, (i + 1) * 4);
+            gridsData.push({
+                id: gridId,
+                acrosomes: slice.map((r, idx) => ({
+                    id: `A${i * 4 + idx + 1}`,
+                    isIntact: r.classification === 'Intact' || r.classification === 'INTACT',
+                    confidence: r.confidence
+                })),
+                intactCount: slice.filter(r => r.classification === 'Intact' || r.classification === 'INTACT').length
+            });
+        }
+
+        return {
+            grids: gridsData,
+            totalIntact: apiResult.intact_count,
+            total: apiResult.total_images,
+            intactPct: apiResult.intact_percentage
+        };
+    }, [apiResult]);
+
+    if (error) {
+        return (
+            <div className="processing-page animate-fade-in">
+                <div className="card error-card animate-pulse" style={{ maxWidth: 500, margin: '100px auto', textAlign: 'center', padding: 40 }}>
+                    <AlertCircle size={48} className="text-error" style={{ marginBottom: 20 }} />
+                    <h2 className="text-error">Analysis Error</h2>
+                    <p>{error}</p>
+                    <button className="btn btn-secondary" onClick={() => navigate('/upload')} style={{ marginTop: 20 }}>
+                        Go Back
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="processing-page animate-fade-in">
@@ -67,8 +126,8 @@ export default function ProcessingPage() {
                     <h1>AI Processing</h1>
                     <p className="text-muted text-sm">Pipeline, grid visualization &amp; classification results</p>
                 </div>
-                <button className="btn btn-primary" onClick={() => navigate('/report')}>
-                    Generate Report <ArrowRight size={16} />
+                <button className="btn btn-primary" disabled={!pipelineDone} onClick={() => navigate('/report', { state: { analysis: apiResult } })}>
+                    View Report <ArrowRight size={16} />
                 </button>
             </div>
 
@@ -83,12 +142,14 @@ export default function ProcessingPage() {
                 </button>
                 <button
                     className={`proc-tab ${activeTab === 'grid' ? 'active' : ''}`}
+                    disabled={!apiResult}
                     onClick={() => setActiveTab('grid')}
                 >
                     <Grid3X3 size={16} /> Grid Split
                 </button>
                 <button
                     className={`proc-tab ${activeTab === 'classification' ? 'active' : ''}`}
+                    disabled={!apiResult}
                     onClick={() => setActiveTab('classification')}
                 >
                     <Layers size={16} /> Classification
@@ -144,7 +205,7 @@ export default function ProcessingPage() {
                                 <div className="complete-container animate-fade-in-up">
                                     <div className="complete-icon"><Check size={48} /></div>
                                     <h2>Analysis Complete</h2>
-                                    <p className="text-muted">All 10 pipeline steps completed</p>
+                                    <p className="text-muted">All pipeline steps completed successfully</p>
                                     <button className="btn btn-primary" onClick={() => setActiveTab('grid')} style={{ marginTop: 20 }}>
                                         View Grid Split →
                                     </button>
@@ -158,12 +219,12 @@ export default function ProcessingPage() {
             {/* ═══════════════════════════════════════
           TAB 2 — GRID SPLIT
          ═══════════════════════════════════════ */}
-            {activeTab === 'grid' && (
+            {activeTab === 'grid' && results && (
                 <div className="tab-content animate-fade-in">
                     <div className="grid-split-layout">
-                        {/* Original Image */}
+                        {/* Original Image Placeholder */}
                         <div className="card original-image-card">
-                            <h3>Original Microscope Image</h3>
+                            <h3>Microscope Sample View</h3>
                             <div className="original-image-placeholder">
                                 <div className="image-grid-overlay">
                                     <div className="grid-line-h" />
@@ -185,30 +246,27 @@ export default function ProcessingPage() {
 
                         {/* 4 Grid Cards */}
                         <div className="grid-cards">
-                            {gridMeta.map((grid, idx) => {
-                                const gridAcrosomes = results.grids[idx]?.acrosomes || [];
-                                return (
-                                    <div key={grid.id} className="glass-card grid-card animate-fade-in-up" style={{ animationDelay: `${idx * 150}ms` }}>
-                                        <div className="grid-card-header">
-                                            <div className="grid-card-icon"><Grid3X3 size={20} /></div>
-                                            <h3>{grid.label}</h3>
-                                            <span className="badge badge-info">{(grid.confidence * 100).toFixed(0)}%</span>
-                                        </div>
-                                        <div className="grid-card-body">
-                                            <div className="acrosome-placeholders">
-                                                {gridAcrosomes.map(a => (
-                                                    <div key={a.id} className={`acrosome-placeholder ${a.isIntact ? 'intact' : 'damaged'}`}>
-                                                        <span className="ap-label">{a.id}</span>
-                                                        <span className={`ap-status ${a.isIntact ? 'text-success' : 'text-error'}`}>
-                                                            {a.isIntact ? 'Intact' : 'Damaged'}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
+                            {results.grids.map((grid, idx) => (
+                                <div key={grid.id} className="glass-card grid-card animate-fade-in-up" style={{ animationDelay: `${idx * 150}ms` }}>
+                                    <div className="grid-card-header">
+                                        <div className="grid-card-icon"><Grid3X3 size={20} /></div>
+                                        <h3>Grid {grid.id}</h3>
+                                        <span className="badge badge-info">4 Images</span>
+                                    </div>
+                                    <div className="grid-card-body">
+                                        <div className="acrosome-placeholders">
+                                            {grid.acrosomes.map(a => (
+                                                <div key={a.id} className={`acrosome-placeholder ${a.isIntact ? 'intact' : 'damaged'}`}>
+                                                    <span className="ap-label">{a.id}</span>
+                                                    <span className={`ap-status ${a.isIntact ? 'text-success' : 'text-error'}`}>
+                                                        {a.isIntact ? 'Intact' : 'Damaged'}
+                                                    </span>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                );
-                            })}
+                                </div>
+                            ))}
                         </div>
                     </div>
                     <div style={{ textAlign: 'center', marginTop: 16 }}>
@@ -222,7 +280,7 @@ export default function ProcessingPage() {
             {/* ═══════════════════════════════════════
           TAB 3 — CLASSIFICATION
          ═══════════════════════════════════════ */}
-            {activeTab === 'classification' && (
+            {activeTab === 'classification' && results && (
                 <div className="tab-content animate-fade-in">
                     <div className="classification-layout">
                         {/* Summary Card */}
@@ -282,7 +340,6 @@ export default function ProcessingPage() {
     );
 }
 
-/* Inline Cpu icon since not imported at top level via lucide */
 function Cpu(props) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
