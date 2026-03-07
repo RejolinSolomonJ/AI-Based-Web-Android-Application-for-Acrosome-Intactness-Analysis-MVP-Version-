@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-    Check, Loader2, Upload, Settings, Grid3X3, ScanSearch
+    Check, Loader2, Upload, Settings, Grid3X3, ScanSearch, AlertCircle
 } from 'lucide-react';
+import { analyzeImages } from '../services/api';
 import './ProcessingPage.css';
 
 const STEPS = [
@@ -18,6 +19,10 @@ export default function ProcessingPage() {
     const { grids, patientDetails } = location.state || {};
 
     const [currentStep, setCurrentStep] = useState(0);
+    const [apiResult, setApiResult] = useState(null);
+    const [error, setError] = useState(null);
+    const hasStarted = useRef(false);
+    const hasNavigated = useRef(false);
 
     // Guard – must have data
     useEffect(() => {
@@ -26,25 +31,53 @@ export default function ProcessingPage() {
         }
     }, [grids, patientDetails, navigate]);
 
-    // 4-step animation: one step every 750ms → done in 3 seconds
+    // ── Perform REAL API Request ──
     useEffect(() => {
-        if (currentStep < STEPS.length) {
+        if (!grids || !patientDetails || hasStarted.current) return;
+        hasStarted.current = true;
+
+        async function runAnalysis() {
+            try {
+                const files = Object.values(grids || {}).flat().map(item => item?.file).filter(Boolean);
+                if (!files.length) throw new Error('No valid files to analyze.');
+
+                const result = await analyzeImages(
+                    files,
+                    patientDetails?.sampleId || '',
+                    patientDetails?.patientId || '',
+                    `Patient: ${patientDetails?.patientName || 'Unknown'}`
+                );
+
+                setApiResult(result);
+                localStorage.setItem('nexacro-latest-analysis', JSON.stringify(result));
+            } catch (err) {
+                console.error('Processing error:', err);
+                setError(err.message || 'Analysis failed. Please try again.');
+            }
+        }
+        runAnalysis();
+    }, [grids, patientDetails]);
+
+    // 4-step animation: one step every 750ms
+    useEffect(() => {
+        if (currentStep < STEPS.length && !error) {
             const t = setTimeout(() => setCurrentStep(s => s + 1), 750);
             return () => clearTimeout(t);
         }
-    }, [currentStep]);
+    }, [currentStep, error]);
 
-    // After animation finishes, navigate to report with grids + patientDetails
+    // After animation finishes AND API responds, navigate to report
     useEffect(() => {
-        if (currentStep >= STEPS.length) {
+        if (currentStep >= STEPS.length && apiResult && !hasNavigated.current) {
+            hasNavigated.current = true;
             const t = setTimeout(() => {
                 navigate('/report', {
-                    state: { grids, patientDetails, analyzing: true }
+                    state: { analysis: apiResult }
                 });
-            }, 400);
+            }, 600);
             return () => clearTimeout(t);
         }
-    }, [currentStep, navigate, grids, patientDetails]);
+    }, [currentStep, apiResult, navigate]);
 
     const done = currentStep >= STEPS.length;
 

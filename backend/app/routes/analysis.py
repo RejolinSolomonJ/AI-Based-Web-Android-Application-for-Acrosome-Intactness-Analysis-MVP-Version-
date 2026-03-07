@@ -5,7 +5,7 @@ This is the core endpoint for the acrosome intactness analysis.
 
 from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, status
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, status, BackgroundTasks
 
 from app.models.user import User
 from app.models.schemas import (
@@ -29,6 +29,7 @@ router = APIRouter(prefix="/api/analysis", tags=["Analysis"])
 
 @router.post("/analyze", response_model=AnalysisResponse, status_code=status.HTTP_201_CREATED)
 async def upload_and_analyze(
+    background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(..., description="One or more microscope images to analyze"),
     sample_id: Optional[str] = Form(None, description="Lab sample identifier"),
     patient_id: Optional[str] = Form(None, description="Patient identifier"),
@@ -67,6 +68,7 @@ async def upload_and_analyze(
 
         record = await analyze_images(
             files=files,
+            background_tasks=background_tasks,
             user_id=user_id,
             sample_id=sample_id,
             patient_id=patient_id,
@@ -81,13 +83,11 @@ async def upload_and_analyze(
             damaged_count=record.damaged_count,
             intact_percentage=record.intact_percentage,
             damaged_percentage=record.damaged_percentage,
-            average_confidence=record.average_confidence,
             image_results=[
                 ImageResultResponse(
                     filename=r.filename,
                     original_filename=r.original_filename,
                     classification=r.classification,
-                    confidence=r.confidence,
                     processing_time_ms=r.processing_time_ms,
                 )
                 for r in record.image_results
@@ -128,13 +128,11 @@ async def get_analysis_result(analysis_id: str):
         damaged_count=record.damaged_count,
         intact_percentage=record.intact_percentage,
         damaged_percentage=record.damaged_percentage,
-        average_confidence=record.average_confidence,
         image_results=[
             ImageResultResponse(
                 filename=r.filename,
                 original_filename=r.original_filename,
                 classification=r.classification,
-                confidence=r.confidence,
                 processing_time_ms=r.processing_time_ms,
             )
             for r in record.image_results
@@ -165,13 +163,11 @@ async def get_analysis_by_session_id(session_id: str):
         damaged_count=record.damaged_count,
         intact_percentage=record.intact_percentage,
         damaged_percentage=record.damaged_percentage,
-        average_confidence=record.average_confidence,
         image_results=[
             ImageResultResponse(
                 filename=r.filename,
                 original_filename=r.original_filename,
                 classification=r.classification,
-                confidence=r.confidence,
                 processing_time_ms=r.processing_time_ms,
             )
             for r in record.image_results
@@ -208,9 +204,9 @@ async def list_all_analyses(
                 total_images=r.total_images,
                 intact_percentage=r.intact_percentage,
                 damaged_percentage=r.damaged_percentage,
-                average_confidence=r.average_confidence,
                 sample_id=r.sample_id,
                 patient_id=r.patient_id,
+                notes=r.notes,
                 created_at=r.created_at,
             )
             for r in records

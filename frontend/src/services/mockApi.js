@@ -55,7 +55,6 @@ export async function getAnalyticsSummary() {
         total_images_processed: 20544,
         overall_intact_percentage: 72.4,
         overall_damaged_percentage: 27.6,
-        average_confidence: 0.9412,
         analyses_today: 8,
         analyses_this_week: 42,
         analyses_this_month: 156,
@@ -91,7 +90,6 @@ function generateMockImageResults(count = 16) {
             filename: `acrosome_${i + 1}.png`,
             original_filename: `sample_region_${i + 1}.png`,
             classification: isIntact ? 'Intact' : 'Damaged',
-            confidence: Math.round((0.82 + Math.random() * 0.17) * 10000) / 10000,
             processing_time_ms: Math.round(Math.random() * 50 + 20),
         });
     }
@@ -112,7 +110,6 @@ export async function analyzeImages(files, sampleId, patientId, notes) {
         damaged_count: damagedCount,
         intact_percentage: Math.round((intactCount / results.length) * 10000) / 100,
         damaged_percentage: Math.round((damagedCount / results.length) * 10000) / 100,
-        average_confidence: Math.round(results.reduce((a, r) => a + r.confidence, 0) / results.length * 10000) / 10000,
         image_results: results,
         sample_id: sampleId || 'SMP-' + Math.floor(Math.random() * 9000 + 1000),
         patient_id: patientId || null,
@@ -134,7 +131,6 @@ export async function getAnalysisResult(id) {
         damaged_count: 16 - intactCount,
         intact_percentage: Math.round((intactCount / 16) * 10000) / 100,
         damaged_percentage: Math.round(((16 - intactCount) / 16) * 10000) / 100,
-        average_confidence: 0.9234,
         image_results: results,
         sample_id: 'SMP-2048',
         patient_id: 'PT-001',
@@ -158,9 +154,9 @@ export async function listAnalyses(page = 1, pageSize = 20) {
             total_images: 16,
             intact_percentage: intactPct,
             damaged_percentage: Math.round((100 - intactPct) * 100) / 100,
-            average_confidence: Math.round((0.88 + Math.random() * 0.1) * 10000) / 10000,
             sample_id: `SMP-${2000 + idx}`,
             patient_id: idx % 3 === 0 ? `PT-${100 + idx}` : null,
+            notes: idx % 2 === 0 ? `Patient: John Doe ${idx}` : null,
             created_at: d.toISOString(),
         });
     }

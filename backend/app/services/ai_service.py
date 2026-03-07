@@ -16,7 +16,7 @@ import traceback
 from pathlib import Path
 from typing import Optional
 
-from fastapi import UploadFile
+from fastapi import UploadFile, BackgroundTasks
 
 from app.config import settings
 from app.models.analysis import AnalysisRecord, SingleImageResult
@@ -26,6 +26,7 @@ from app.ml.preprocessing import validate_image_file
 
 async def analyze_images(
     files: list[UploadFile],
+    background_tasks: Optional[BackgroundTasks] = None,
     user_id: Optional[str] = None,
     sample_id: Optional[str] = None,
     patient_id: Optional[str] = None,
@@ -33,17 +34,22 @@ async def analyze_images(
 ) -> AnalysisRecord:
     """
     Full analysis pipeline for a batch of uploaded images.
-
-    Args:
-        files: List of uploaded image files
-        user_id: ID of the authenticated user (optional)
-        sample_id: Lab sample identifier (optional)
-        patient_id: Patient identifier (optional)
-        notes: Additional notes (optional)
-
-    Returns:
-        AnalysisRecord document saved to MongoDB
     """
+    # ── Idempotency Check ──
+    # If a request for the same patient/sample comes in within 60 seconds, 
+    # return the existing record instead of re-analysing everything.
+    if patient_id and sample_id:
+        from datetime import datetime, timedelta
+        recent_cutoff = datetime.utcnow() - timedelta(seconds=60)
+        existing = await AnalysisRecord.find_one(
+            AnalysisRecord.patient_id == patient_id,
+            AnalysisRecord.sample_id == sample_id,
+            AnalysisRecord.created_at >= recent_cutoff
+        )
+        if existing:
+            print(f"[IDEMPOTENT] Reusing recent analysis for {patient_id}/{sample_id}")
+            return existing
+
     session_id = f"sess_{uuid.uuid4().hex[:12]}"
     overall_start = time.perf_counter()
 
@@ -103,7 +109,6 @@ async def analyze_images(
             filename=meta["saved_filename"],
             original_filename=meta["original_filename"],
             classification=pred["classification"],
-            confidence=pred["confidence"],
             image_path=meta["save_path"],
             processing_time_ms=pred["processing_time_ms"],
         )
@@ -115,9 +120,6 @@ async def analyze_images(
     damaged_count = total - intact_count
     intact_pct = round((intact_count / total) * 100, 2) if total > 0 else 0.0
     damaged_pct = round((damaged_count / total) * 100, 2) if total > 0 else 0.0
-    avg_confidence = round(
-        sum(r.confidence for r in image_results) / total, 4
-    ) if total > 0 else 0.0
 
     total_processing_ms = (time.perf_counter() - overall_start) * 1000
 
@@ -131,7 +133,6 @@ async def analyze_images(
         damaged_count=damaged_count,
         intact_percentage=intact_pct,
         damaged_percentage=damaged_pct,
-        average_confidence=avg_confidence,
         notes=notes,
         sample_id=sample_id,
         patient_id=patient_id,
@@ -142,12 +143,17 @@ async def analyze_images(
     print(f"[OK] Analysis saved: {session_id} | {total} images | {intact_pct}% intact")
 
     # ── Step 6: Pre-generate PDF so download is instant ──────
-    try:
+    if background_tasks:
         from app.services.pdf_service import generate_analysis_report
-        generate_analysis_report(record)
-        print(f"[OK] PDF pre-generated for {session_id}")
-    except Exception as pdf_err:
-        print(f"[WARN] PDF pre-generation failed (non-fatal): {pdf_err}")
+        
+        def safely_generate():
+            try:
+                generate_analysis_report(record)
+                print(f"[OK] PDF pre-generated for {session_id}")
+            except Exception as pdf_err:
+                print(f"[WARN] PDF pre-generation failed (non-fatal): {pdf_err}")
+
+        background_tasks.add_task(safely_generate)
 
     return record
 

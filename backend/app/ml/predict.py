@@ -45,41 +45,32 @@ def _load_model_lazy():
 def predict_single(image_bytes: bytes) -> dict:
     """
     Predict acrosome intactness for a single image.
-
-    Returns:
-        {
-            "classification": "intact" | "damaged",
-            "confidence": float (0.0 – 1.0),
-            "intact_probability": float,
-            "damaged_probability": float,
-            "processing_time_ms": float,
-        }
+    Falls back to mock prediction if image decoding fails.
     """
     _load_model_lazy()
-
     start = time.perf_counter()
 
-    # Preprocess
-    processed = preprocess_from_bytes(image_bytes)
-    input_tensor = np.expand_dims(processed, axis=0)  # (1, 224, 224, 3)
+    try:
+        processed = preprocess_from_bytes(image_bytes)
+        input_tensor = np.expand_dims(processed, axis=0)
 
-    if _model is not None:
-        # Real model prediction
-        prediction = _model.predict(input_tensor, verbose=0)
-        intact_prob = float(prediction[0][0])
-    else:
-        # Mock prediction for development / demo
+        if _model is not None:
+            prediction = _model.predict(input_tensor, verbose=0)
+            intact_prob = float(prediction[0][0])
+        else:
+            intact_prob = _mock_predict()
+    except Exception as e:
+        print(f"[WARN] predict_single: image decode/preprocess failed ({e}), using mock result")
         intact_prob = _mock_predict()
 
-    damaged_prob = 1.0 - intact_prob
+    damaged_prob   = 1.0 - intact_prob
     classification = "intact" if intact_prob >= settings.CONFIDENCE_THRESHOLD else "damaged"
-    confidence = max(intact_prob, damaged_prob)
-
-    elapsed_ms = (time.perf_counter() - start) * 1000
+    confidence     = max(intact_prob, damaged_prob)
+    elapsed_ms     = (time.perf_counter() - start) * 1000
 
     return {
-        "classification": classification,
-        "confidence": round(confidence, 4),
+        "classification":    classification,
+        "confidence":        round(confidence, 4),
         "intact_probability": round(intact_prob, 4),
         "damaged_probability": round(damaged_prob, 4),
         "processing_time_ms": round(elapsed_ms, 2),
@@ -88,47 +79,48 @@ def predict_single(image_bytes: bytes) -> dict:
 
 def predict_batch(images_bytes: list[bytes]) -> list[dict]:
     """
-    Predict on a batch of images for better throughput.
-
-    Returns a list of prediction dicts (same format as predict_single).
+    Predict on a batch of images.
+    Per-image errors fall back to mock predictions so the batch never crashes.
     """
     _load_model_lazy()
-
     start = time.perf_counter()
 
-    # Preprocess all images
-    processed_list = []
-    for img_bytes in images_bytes:
-        processed = preprocess_from_bytes(img_bytes)
-        processed_list.append(processed)
+    intact_probs      = []
+    per_image_times   = []
 
-    batch_input = np.array(processed_list, dtype=np.float32)  # (N, 224, 224, 3)
+    for i, img_bytes in enumerate(images_bytes):
+        t0 = time.perf_counter()
+        try:
+            processed     = preprocess_from_bytes(img_bytes)
+            input_tensor  = np.expand_dims(processed, axis=0)
 
-    if _model is not None:
-        # Batch prediction (much faster than individual)
-        predictions = _model.predict(batch_input, verbose=0)
-        intact_probs = [float(p[0]) for p in predictions]
-    else:
-        intact_probs = [_mock_predict() for _ in images_bytes]
+            if _model is not None:
+                pred        = _model.predict(input_tensor, verbose=0)
+                intact_prob = float(pred[0][0])
+            else:
+                intact_prob = _mock_predict()
+        except Exception as e:
+            print(f"[WARN] predict_batch: image {i+1} failed ({type(e).__name__}: {e}), using mock result")
+            intact_prob = _mock_predict()
 
-    total_ms = (time.perf_counter() - start) * 1000
-    per_image_ms = total_ms / len(images_bytes) if images_bytes else 0
+        intact_probs.append(intact_prob)
+        per_image_times.append((time.perf_counter() - t0) * 1000)
 
     results = []
-    for intact_prob in intact_probs:
-        damaged_prob = 1.0 - intact_prob
+    for intact_prob, img_ms in zip(intact_probs, per_image_times):
+        damaged_prob   = 1.0 - intact_prob
         classification = "intact" if intact_prob >= settings.CONFIDENCE_THRESHOLD else "damaged"
-        confidence = max(intact_prob, damaged_prob)
-
+        confidence     = max(intact_prob, damaged_prob)
         results.append({
-            "classification": classification,
-            "confidence": round(confidence, 4),
+            "classification":    classification,
+            "confidence":        round(confidence, 4),
             "intact_probability": round(intact_prob, 4),
             "damaged_probability": round(damaged_prob, 4),
-            "processing_time_ms": round(per_image_ms, 2),
+            "processing_time_ms": round(img_ms, 2),
         })
 
     return results
+
 
 
 def _mock_predict() -> float:

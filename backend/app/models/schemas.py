@@ -50,7 +50,6 @@ class ImageResultResponse(BaseModel):
     filename: str
     original_filename: str
     classification: str
-    confidence: float
     processing_time_ms: float
 
 
@@ -62,7 +61,6 @@ class AnalysisResponse(BaseModel):
     damaged_count: int
     intact_percentage: float
     damaged_percentage: float
-    average_confidence: float
     image_results: list[ImageResultResponse]
     sample_id: Optional[str] = None
     patient_id: Optional[str] = None
@@ -77,9 +75,9 @@ class AnalysisListItem(BaseModel):
     total_images: int
     intact_percentage: float
     damaged_percentage: float
-    average_confidence: float
     sample_id: Optional[str] = None
     patient_id: Optional[str] = None
+    notes: Optional[str] = None
     created_at: datetime
 
 
@@ -99,7 +97,6 @@ class AnalyticsSummary(BaseModel):
     total_images_processed: int
     overall_intact_percentage: float
     overall_damaged_percentage: float
-    average_confidence: float
     analyses_today: int
     analyses_this_week: int
     analyses_this_month: int

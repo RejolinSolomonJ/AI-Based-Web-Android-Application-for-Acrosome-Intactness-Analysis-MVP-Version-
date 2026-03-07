@@ -16,7 +16,6 @@ class SingleImageResult(BaseModel):
     filename: str
     original_filename: str
     classification: str  # "intact" | "damaged"
-    confidence: float = Field(..., ge=0.0, le=1.0)
     image_path: str
     processing_time_ms: float
 
@@ -39,7 +38,6 @@ class AnalysisRecord(Document):
     damaged_count: int = 0
     intact_percentage: float = 0.0
     damaged_percentage: float = 0.0
-    average_confidence: float = 0.0
 
     # ── Metadata ─────────────────────────────────────────────
     notes: Optional[str] = None

@@ -15,12 +15,11 @@ from app.models.analysis import AnalysisRecord
 # ── Column widths (must sum to 180) ──────────────────────────────────────────
 COL = {
     "num":   12,
-    "file":  64,
-    "class": 34,
-    "conf":  34,
-    "time":  36,
+    "file":  79,
+    "class": 45,
+    "time":  44,
 }
-HDRS = ["#", "Filename", "Classification", "Confidence", "Proc. Time"]
+HDRS = ["#", "Filename", "Classification", "Proc. Time"]
 ROW_H = 7
 HDR_H = 8
 
@@ -75,8 +74,10 @@ class AcrosomeReport(FPDF):
         self.set_font("Helvetica", "B", 9)
         self.set_fill_color(25, 60, 120)
         self.set_text_color(255, 255, 255)
-        for key, hdr in zip(COL, HDRS):
-            self.cell(COL[key], HDR_H, hdr, border=1, fill=True, align="C", new_x="END")
+        aligns = ["C", "L", "C", "C"]
+        for al, key_hdr in zip(aligns, zip(COL, HDRS)):
+            key, hdr = key_hdr
+            self.cell(COL[key], HDR_H, hdr, border=1, fill=True, align=al, new_x="END")
         self.ln()
         self.set_text_color(0, 0, 0)
 
@@ -112,8 +113,6 @@ class AcrosomeReport(FPDF):
         self.cell(COL["class"], ROW_H, cls, border=1, fill=True, align="C", new_x="END")
         self.set_text_color(0, 0, 0)
 
-        # Confidence
-        self.cell(COL["conf"], ROW_H, f"{result.confidence * 100:.1f}%", border=1, fill=True, align="C", new_x="END")
         # Time
         self.cell(COL["time"], ROW_H, f"{result.processing_time_ms:.1f} ms", border=1, fill=True, align="C", new_x="END")
         self.ln()
@@ -178,7 +177,7 @@ def generate_analysis_report(
         ("Total Analysed",    str(record.total_images)),
         ("Intact Count",      str(record.intact_count)),
         ("Damaged Count",     str(record.damaged_count)),
-        ("Avg. Confidence",   f"{record.average_confidence * 100:.1f}%"),
+        ("Processing Time",   f"{record.total_processing_time_ms:.0f} ms"),
     ]
     for i, (lbl, val) in enumerate(stats):
         if i % 2 == 0:

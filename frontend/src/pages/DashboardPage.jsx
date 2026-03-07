@@ -80,9 +80,9 @@ export default function DashboardPage() {
                 />
                 <StatsCard
                     icon={Activity}
-                    label="AI Confidence"
-                    value={`${(summary.average_confidence * 100).toFixed(1)}%`}
-                    color="blue"
+                    label="Average Damaged %"
+                    value={`${summary.overall_damaged_percentage}%`}
+                    color="red"
                     delay={300}
                 />
             </div>
@@ -183,17 +183,15 @@ export default function DashboardPage() {
                                 <th>Date</th>
                                 <th>Sample ID</th>
                                 <th>Intact %</th>
-                                <th>Confidence</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {recent.map(r => (
-                                <tr key={r.id} onClick={() => navigate(`/classification`)}>
+                                <tr key={r.id} onClick={() => navigate('/report', { state: { analysisId: r.id } })} style={{ cursor: 'pointer' }}>
                                     <td>{new Date(r.created_at).toLocaleDateString()}</td>
                                     <td><span className="sample-id">{r.sample_id || '—'}</span></td>
                                     <td>{r.intact_percentage}%</td>
-                                    <td>{(r.average_confidence * 100).toFixed(1)}%</td>
                                     <td>
                                         <span className={`badge ${r.intact_percentage >= 70 ? 'badge-success' : 'badge-error'}`}>
                                             {r.intact_percentage >= 70 ? 'Good' : 'Low'}

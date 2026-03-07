@@ -1,7 +1,7 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Download, Plus, CheckCircle, XCircle, Clock, Hash, User, FlaskConical, Loader2, AlertCircle } from 'lucide-react';
-import { analyzeImages, generateReport } from '../services/api';
+import { analyzeImages, generateReport, getAnalysisResult } from '../services/api';
 import './ReportPage.css';
 
 export default function ReportPage() {
@@ -9,39 +9,42 @@ export default function ReportPage() {
     const location = useLocation();
 
     // Two entry modes:
-    // 1. { analyzing: true, grids, patientDetails } – came from ProcessingPage, need to call API
-    // 2. { analysis } – legacy / direct navigation with result already in state
-    const { analyzing, grids, patientDetails, analysis: initialAnalysis } = location.state || {};
+    // 1. { analysis } – standard navigation from ProcessingPage with fresh result
+    // 2. { analysisId } – coming from History / Dashboard to view an old report
+    const { grids, patientDetails, analysis: stateAnalysis, analysisId } = location.state || {};
 
-    const [analysis, setAnalysis] = useState(initialAnalysis || null);
-    const [apiLoading, setApiLoading] = useState(!!analyzing);
+    const [analysis, setAnalysis] = useState(() => {
+        if (stateAnalysis) return stateAnalysis;
+        try {
+            const saved = localStorage.getItem('nexacro-latest-analysis');
+            return saved ? JSON.parse(saved) : null;
+        } catch (e) {
+            return null;
+        }
+    });
+
+    const [apiLoading, setApiLoading] = useState(!!analysisId && !analysis);
     const [apiError, setApiError] = useState(null);
     const [downloading, setDownloading] = useState(false);
 
-    // ── Run API call when navigated from ProcessingPage ──
+    // ── Load record if only AnalysisID was provided (History/Dashboard) ──
     useEffect(() => {
-        if (!analyzing) return;
+        if (!analysisId || analysis) return;
 
-        async function run() {
+        async function fetchResult() {
+            setApiLoading(true);
             try {
-                const files = Object.values(grids).flat().map(item => item.file);
-                const result = await analyzeImages(
-                    files,
-                    patientDetails.sampleId,
-                    patientDetails.patientId,
-                    `Patient: ${patientDetails.patientName}`
-                );
+                const result = await getAnalysisResult(analysisId);
                 setAnalysis(result);
             } catch (err) {
-                console.error('Analysis error:', err);
-                setApiError(err.message || 'Analysis failed. Please try again.');
+                console.error('Fetch error:', err);
+                setApiError(err.message || 'Could not load analysis record.');
             } finally {
                 setApiLoading(false);
             }
         }
-        run();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        fetchResult();
+    }, [analysisId, analysis]);
 
     const report = useMemo(() => {
         if (!analysis) return null;
@@ -57,7 +60,6 @@ export default function ReportPage() {
             damaged: analysis.damaged_count,
             intactPct: analysis.intact_percentage,
             damagedPct: analysis.damaged_percentage,
-            avgConf: analysis.average_confidence,
             processingMs: analysis.total_processing_time_ms,
             results: analysis.image_results || [],
         };
@@ -69,7 +71,7 @@ export default function ReportPage() {
         try {
             const data = await generateReport(analysis.id);
             if (data.download_url) {
-                window.open(`http://localhost:8000${data.download_url}`, '_blank');
+                window.open(data.download_url, '_blank');
             }
         } catch (err) {
             alert('Failed to download PDF: ' + err.message);
@@ -78,14 +80,19 @@ export default function ReportPage() {
         }
     };
 
+    const handleNextPatient = () => {
+        localStorage.removeItem('nexacro-latest-analysis');
+        navigate('/upload');
+    };
+
     // ── No state at all ──
-    if (!analyzing && !initialAnalysis) {
+    if (!analyzing && !initialAnalysis && !analysisId && !analysis) {
         return (
             <div className="report-page animate-fade-in">
                 <div className="card" style={{ maxWidth: 480, margin: '100px auto', textAlign: 'center', padding: 40 }}>
                     <h2 className="text-muted">No Analysis Data</h2>
                     <p>Please perform an analysis first.</p>
-                    <button className="btn btn-primary" onClick={() => navigate('/upload')} style={{ marginTop: 20 }}>
+                    <button className="btn btn-primary" onClick={handleNextPatient} style={{ marginTop: 20 }}>
                         Start New Analysis
                     </button>
                 </div>
@@ -104,8 +111,8 @@ export default function ReportPage() {
                     </p>
                 </div>
                 <div className="flex gap-3">
-                    <button className="btn btn-secondary" onClick={() => navigate('/upload')}>
-                        <Plus size={16} /> New Analysis
+                    <button className="btn btn-secondary" onClick={handleNextPatient}>
+                        <Plus size={16} /> Next Patient
                     </button>
                     <button
                         className="btn btn-primary"
@@ -206,7 +213,6 @@ export default function ReportPage() {
                                 ['Total Analysed', report.total],
                                 ['Intact Count', report.intact],
                                 ['Damaged Count', report.damaged],
-                                ['Avg Confidence', `${(report.avgConf * 100).toFixed(1)}%`],
                             ].map(([lbl, val]) => (
                                 <div className="rpt-stat" key={lbl}>
                                     <span className="rpt-stat-label">{lbl}</span>
@@ -222,11 +228,10 @@ export default function ReportPage() {
                         <table className="rpt-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '5%' }}>#</th>
-                                    <th style={{ width: '38%' }}>Filename</th>
-                                    <th style={{ width: '20%' }}>Classification</th>
-                                    <th style={{ width: '18%' }}>Confidence</th>
-                                    <th style={{ width: '19%' }}>Proc. Time</th>
+                                    <th style={{ width: '5%', textAlign: 'center' }}>#</th>
+                                    <th style={{ width: '45%', textAlign: 'left' }}>Filename</th>
+                                    <th style={{ width: '25%', textAlign: 'center' }}>Classification</th>
+                                    <th style={{ width: '25%', textAlign: 'center' }}>Proc. Time</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -241,7 +246,6 @@ export default function ReportPage() {
                                                 ? <span className="badge-cls intact"><CheckCircle size={13} /> Intact</span>
                                                 : <span className="badge-cls damaged"><XCircle size={13} /> Damaged</span>}
                                         </td>
-                                        <td style={{ textAlign: 'center' }}>{(r.confidence * 100).toFixed(1)}%</td>
                                         <td style={{ textAlign: 'center' }}>{r.processing_time_ms?.toFixed(1)} ms</td>
                                     </tr>
                                 ))}

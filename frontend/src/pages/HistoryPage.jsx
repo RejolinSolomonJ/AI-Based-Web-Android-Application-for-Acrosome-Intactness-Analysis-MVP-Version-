@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Filter, FileText } from 'lucide-react';
 import { listAnalyses } from '../services/api';
 import './HistoryPage.css';
 
 export default function HistoryPage() {
+    const navigate = useNavigate();
     const [analyses, setAnalyses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -82,10 +84,10 @@ export default function HistoryPage() {
                             <thead>
                                 <tr>
                                     <th>Date</th>
+                                    <th>Patient</th>
                                     <th>Sample ID</th>
                                     <th>Images</th>
                                     <th>Intact %</th>
-                                    <th>Confidence</th>
                                     <th>Status</th>
                                     <th>Action</th>
                                 </tr>
@@ -101,6 +103,7 @@ export default function HistoryPage() {
                                     filtered.map((a, idx) => (
                                         <tr key={a.id} className="animate-fade-in" style={{ animationDelay: `${idx * 40}ms` }}>
                                             <td>{new Date(a.created_at).toLocaleDateString()}</td>
+                                            <td><span style={{ fontWeight: 500 }}>{a.notes?.startsWith('Patient: ') ? a.notes.replace('Patient: ', '') : (a.patient_id || '—')}</span></td>
                                             <td><span className="sample-id">{a.sample_id || '—'}</span></td>
                                             <td>{a.total_images}</td>
                                             <td>
@@ -109,14 +112,16 @@ export default function HistoryPage() {
                                                     <span>{a.intact_percentage}%</span>
                                                 </div>
                                             </td>
-                                            <td>{(a.average_confidence * 100).toFixed(1)}%</td>
                                             <td>
                                                 <span className={`badge ${a.intact_percentage >= 75 ? 'badge-success' : a.intact_percentage >= 50 ? 'badge-info' : 'badge-error'}`}>
                                                     {a.intact_percentage >= 75 ? 'Good' : a.intact_percentage >= 50 ? 'Fair' : 'Low'}
                                                 </span>
                                             </td>
                                             <td>
-                                                <button className="btn btn-ghost btn-sm">
+                                                <button
+                                                    className="btn btn-ghost btn-sm"
+                                                    onClick={() => navigate('/report', { state: { analysisId: a.id } })}
+                                                >
                                                     <FileText size={14} /> View
                                                 </button>
                                             </td>

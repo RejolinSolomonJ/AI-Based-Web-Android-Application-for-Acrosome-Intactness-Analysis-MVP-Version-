@@ -155,7 +155,7 @@ def generate_report(image_path: str):
     pdf.set_font("Helvetica", "B", 10)
     pdf.set_fill_color(25, 60, 120)
     pdf.set_text_color(255, 255, 255)
-    pdf.cell(col_widths[0], 8, "Metric", border=1, fill=True, align="C", new_x="END")
+    pdf.cell(col_widths[0], 8, "Metric", border=1, fill=True, align="L", new_x="END")
     pdf.cell(col_widths[1], 8, "Value", border=1, fill=True, align="C", new_x="LMARGIN", new_y="NEXT")
 
     pdf.set_font("Helvetica", "", 10)

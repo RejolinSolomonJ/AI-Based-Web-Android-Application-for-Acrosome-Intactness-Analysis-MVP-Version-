@@ -33,13 +33,9 @@ async def get_summary_analytics():
         total_damaged = sum(r.damaged_count for r in all_records)
         overall_intact_pct = round((total_intact / total_images) * 100, 2) if total_images > 0 else 0
         overall_damaged_pct = round((total_damaged / total_images) * 100, 2) if total_images > 0 else 0
-        avg_confidence = round(
-            sum(r.average_confidence for r in all_records) / total_analyses, 4
-        )
     else:
         overall_intact_pct = 0.0
         overall_damaged_pct = 0.0
-        avg_confidence = 0.0
 
     # Time-based counts
     now = datetime.utcnow()
@@ -56,7 +52,6 @@ async def get_summary_analytics():
         total_images_processed=total_images,
         overall_intact_percentage=overall_intact_pct,
         overall_damaged_percentage=overall_damaged_pct,
-        average_confidence=avg_confidence,
         analyses_today=analyses_today,
         analyses_this_week=analyses_week,
         analyses_this_month=analyses_month,
