@@ -1,0 +1,38 @@
+# Render.com Blueprint Configuration for Acrosome Analysis
+
+services:
+  - type: web
+    name: acrosome-api
+    runtime: docker
+    dockerContext: backend
+    dockerfilePath: Dockerfile
+    plan: free
+    region: singapore # Change to your nearest region
+    envVars:
+      - key: MONGODB_URL
+        sync: false # Set this manually in Render dashboard to MongoDB Atlas URL
+      - key: DATABASE_NAME
+        value: acrosome_db
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 8000
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        sync: false # Set a unique secret in environment settings
+      - key: IMAGE_SIZE
+        value: "224"
+      - key: UPLOAD_DIR
+        value: uploads
+      - key: REPORTS_DIR
+        value: reports
+      - key: ENCRYPTION_KEY
+        sync: false # Set a unique encryption key
+    routes:
+      - type: rewrite
+        source: /docs
+        destination: /docs
+      - type: rewrite
+        source: /redoc
+        destination: /redoc
