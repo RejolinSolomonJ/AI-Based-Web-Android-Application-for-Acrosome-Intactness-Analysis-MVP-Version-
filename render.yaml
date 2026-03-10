@@ -5,7 +5,7 @@ services:
     name: acrosome-api
     runtime: docker
     dockerContext: backend
-    dockerfilePath: Dockerfile
+    dockerfilePath: backend/Dockerfile
     plan: free
     region: singapore # Change to your nearest region
     envVars:
@@ -29,10 +29,19 @@ services:
         value: reports
       - key: ENCRYPTION_KEY
         sync: false # Set a unique encryption key
+
+  - type: static
+    name: acrosome-frontend
+    buildCommand: cd frontend && npm install && npm run build
+    publishDir: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: acrosome-api
+          type: web
+          property: host
     routes:
+      # SPA fallback: Rewrite all non-file routes to index.html
       - type: rewrite
-        source: /docs
-        destination: /docs
-      - type: rewrite
-        source: /redoc
-        destination: /redoc
+        source: /*
+        destination: /index.html
