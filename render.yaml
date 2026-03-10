@@ -30,7 +30,7 @@ services:
       - key: ENCRYPTION_KEY
         sync: false # Set a unique encryption key
 
-  - type: static
+  - type: static_site
     name: acrosome-frontend
     buildCommand: cd frontend && npm install && npm run build
     publishDir: frontend/dist
