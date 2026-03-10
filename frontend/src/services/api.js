@@ -2,7 +2,11 @@
    NexAcro Real API — FastAPI backend connection
    ═══════════════════════════════════════════ */
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+let rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Remove trailing slash if present to avoid double slashes like //api/...
+const BASE_URL = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+
+console.log('🔗 NexAcro API Connection:', BASE_URL);
 
 async function handleResponse(response) {
     if (!response.ok) {
