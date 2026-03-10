@@ -75,10 +75,12 @@ class AcrosomeReport(FPDF):
         self.set_fill_color(25, 60, 120)
         self.set_text_color(255, 255, 255)
         aligns = ["C", "L", "C", "C"]
-        for al, key_hdr in zip(aligns, zip(COL, HDRS)):
+        for i, (al, key_hdr) in enumerate(zip(aligns, zip(COL, HDRS))):
             key, hdr = key_hdr
-            self.cell(COL[key], HDR_H, hdr, border=1, fill=True, align=al, new_x="END")
-        self.ln()
+            is_last = (i == len(HDRS) - 1)
+            nx = "LMARGIN" if is_last else "RIGHT"
+            ny = "NEXT" if is_last else "TOP"
+            self.cell(COL[key], HDR_H, hdr, border=1, fill=True, align=al, new_x=nx, new_y=ny)
         self.set_text_color(0, 0, 0)
 
     def table_row(self, idx: int, result):
@@ -96,13 +98,13 @@ class AcrosomeReport(FPDF):
         self.set_font("Helvetica", "", 9)
 
         # #
-        self.cell(COL["num"], ROW_H, str(idx), border=1, fill=True, align="C", new_x="END")
+        self.cell(COL["num"], ROW_H, str(idx), border=1, fill=True, align="C", new_x="RIGHT", new_y="TOP")
 
         # Filename (truncated)
         name = result.original_filename
         if len(name) > 30:
             name = name[:27] + "…"
-        self.cell(COL["file"], ROW_H, name, border=1, fill=True, new_x="END")
+        self.cell(COL["file"], ROW_H, name, border=1, fill=True, new_x="RIGHT", new_y="TOP")
 
         # Classification (coloured)
         cls = result.classification.capitalize()
@@ -110,12 +112,11 @@ class AcrosomeReport(FPDF):
             self.set_text_color(22, 140, 50)
         else:
             self.set_text_color(200, 40, 40)
-        self.cell(COL["class"], ROW_H, cls, border=1, fill=True, align="C", new_x="END")
+        self.cell(COL["class"], ROW_H, cls, border=1, fill=True, align="C", new_x="RIGHT", new_y="TOP")
         self.set_text_color(0, 0, 0)
 
         # Time
-        self.cell(COL["time"], ROW_H, f"{result.processing_time_ms:.1f} ms", border=1, fill=True, align="C", new_x="END")
-        self.ln()
+        self.cell(COL["time"], ROW_H, f"{result.processing_time_ms:.1f} ms", border=1, fill=True, align="C", new_x="LMARGIN", new_y="NEXT")
 
 
 # ── Main function ─────────────────────────────────────────────────────────────
