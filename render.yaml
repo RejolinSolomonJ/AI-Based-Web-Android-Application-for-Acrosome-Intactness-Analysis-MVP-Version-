@@ -10,7 +10,7 @@ services:
     region: singapore # Change to your nearest region
     envVars:
       - key: MONGODB_URL
-        sync: false # Set as environment variable in Render Dashboard
+        sync: false # Set in Dashboard
       - key: DATABASE_NAME
         value: acrosome_db
       - key: HOST
@@ -18,15 +18,16 @@ services:
       - key: PORT
         value: 8000
       - key: SECRET_KEY
-        sync: false # Set as environment variable in Render Dashboard
+        sync: false # Set in Dashboard
       - key: ENCRYPTION_KEY
-        sync: false # Set as environment variable in Render Dashboard
+        sync: false # Set in Dashboard
 
-staticSites:
-  - name: acrosome-frontend
+  - type: web
+    name: acrosome-frontend
+    runtime: static
     rootDirectory: frontend
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: dist
     envVars:
       - key: NODE_VERSION
         value: "20.17.0"
