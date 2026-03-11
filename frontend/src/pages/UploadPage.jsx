@@ -27,11 +27,11 @@ function canvasConvert(file) {
 
 /**
  * Validates if the image appears to be a microscopic sample instead of a generic natural photo.
- * Uses colorfulness metric and grayscale standard deviation.
+ * Uses a strict heuristic: rejects images with significant red/green/yellow content, 
+ * high colorfulness, or lack of characteristic microscopic background.
  */
 async function validateImageContent(file) {
     return new Promise((resolve) => {
-        // Skip validation for HEIF/HEIC since browser Image() might fail to load it immediately
         if (file.type === 'image/heic' || file.name.match(/\.(heic|heif)$/i)) {
             resolve(true);
             return;
@@ -52,41 +52,62 @@ async function validateImageContent(file) {
                 const imgData = ctx.getImageData(0, 0, size, size).data;
                 const total = size * size;
 
-                let rgSum = 0, ybSum = 0, graySum = 0;
+                let rgSum = 0, ybSum = 0;
                 let grays = new Float32Array(total), rgVals = new Float32Array(total), ybVals = new Float32Array(total);
+
+                let redGreenYellowPixels = 0;
+                let veryDarkPixels = 0;
+                let brightPixels = 0;
 
                 for (let i = 0, j = 0; j < total; i += 4, j++) {
                     const r = imgData[i], g = imgData[i + 1], b = imgData[i + 2];
+
                     const rg = Math.abs(r - g);
                     const yb = Math.abs(0.5 * (r + g) - b);
                     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
 
                     rgVals[j] = rg; ybVals[j] = yb; grays[j] = gray;
-                    rgSum += rg; ybSum += yb; graySum += gray;
+                    rgSum += rg; ybSum += yb;
+
+                    // Microscopic stains are mainly blue/purple/grey. 
+                    // Reject if strong reds, greens, or yellows are prominent.
+                    if ((r > 100 && g < 80 && b < 80) || // Strong Red
+                        (g > 100 && r < 80 && b < 80) || // Strong Green
+                        (r > 120 && g > 120 && b < 80))  // Strong Yellow
+                    {
+                        redGreenYellowPixels++;
+                    }
+
+                    if (gray < 30) veryDarkPixels++;
+                    if (gray > 200) brightPixels++;
                 }
 
-                const rgMean = rgSum / total, ybMean = ybSum / total, grayMean = graySum / total;
+                const rgMean = rgSum / total, ybMean = ybSum / total;
+                let rgVarSum = 0, ybVarSum = 0;
 
-                let rgVarSum = 0, ybVarSum = 0, grayVarSum = 0;
                 for (let j = 0; j < total; j++) {
                     rgVarSum += Math.pow(rgVals[j] - rgMean, 2);
                     ybVarSum += Math.pow(ybVals[j] - ybMean, 2);
-                    grayVarSum += Math.pow(grays[j] - grayMean, 2);
                 }
 
                 const rgStd = Math.sqrt(rgVarSum / total);
                 const ybStd = Math.sqrt(ybVarSum / total);
-                const grayStd = Math.sqrt(grayVarSum / total);
 
-                // Hasler and Suesstrunk color metric
+                // Colorfulness metric
                 const colorfulness = Math.sqrt(Math.pow(rgStd, 2) + Math.pow(ybStd, 2)) + 0.3 * Math.sqrt(Math.pow(rgMean, 2) + Math.pow(ybMean, 2));
 
-                // Microscopic samples: low color variance (mostly stained 1 color or dull)
-                // Natural photos: Highly colorful (> 50-60) or huge global contrast (grayStd > 75)
-                if (colorfulness > 55 || (colorfulness > 35 && grayStd > 75) || (colorfulness < 5 && grayStd > 85)) {
+                const redGreenYellowRatio = redGreenYellowPixels / total;
+                const veryDarkRatio = veryDarkPixels / total;
+
+                // STRICT RULES:
+                // 1. If colorfulness is > 25, it's too colorful to be a standard clinical microscopy sample.
+                // 2. If more than 5% of pixels are distinctly red/green/yellow.
+                // 3. If image is mostly pitch black (> 40% very dark) like a dark screenshot.
+                if (colorfulness > 25 || redGreenYellowRatio > 0.05 || veryDarkRatio > 0.40) {
                     resolve(false);
                     return;
                 }
+
                 resolve(true);
             } catch (e) {
                 console.warn("Validation error fallback", e);
