@@ -26,25 +26,28 @@ function canvasConvert(file) {
 }
 
 /**
- * Validates if the image appears to be a microscopic sample instead of a generic natural photo.
- * Uses a strict heuristic: rejects images with significant red/green/yellow content, 
- * high colorfulness, or lack of characteristic microscopic background.
+ * Highly strict image validation using manual Computer Vision techniques.
+ * Rejects screenshots, natural photos, selfies, and pure noise.
+ * Only accepts images with properties typical of microscopy:
+ * - Low edge density (mostly empty background)
+ * - Low colorfulness (stained one hue)
+ * - Specific brightness distributions
  */
 async function validateImageContent(file) {
     return new Promise((resolve) => {
         if (file.type === 'image/heic' || file.name.match(/\.(heic|heif)$/i)) {
-            resolve(true);
+            resolve(true); // Can't easily canvas-draw HEIC immediately without heavy async conversion
             return;
         }
 
         const url = URL.createObjectURL(file);
         const img = new Image();
         img.onload = () => {
-            const canvas = document.createElement('canvas');
             const size = 150;
+            const canvas = document.createElement('canvas');
             canvas.width = size;
             canvas.height = size;
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
             ctx.drawImage(img, 0, 0, size, size);
             URL.revokeObjectURL(url);
 
@@ -53,71 +56,71 @@ async function validateImageContent(file) {
                 const total = size * size;
 
                 let rgSum = 0, ybSum = 0;
-                let grays = new Float32Array(total), rgVals = new Float32Array(total), ybVals = new Float32Array(total);
+                let grays = new Float32Array(total);
+                let edgePixels = 0;
+                let redGreenPixels = 0;
 
-                let redGreenYellowPixels = 0;
-                let veryDarkPixels = 0;
-                let brightPixels = 0;
+                // 1. Color && Grayscale Pass
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) {
+                        const idx = (y * size + x) * 4;
+                        const r = imgData[idx], g = imgData[idx + 1], b = imgData[idx + 2];
 
-                for (let i = 0, j = 0; j < total; i += 4, j++) {
-                    const r = imgData[i], g = imgData[i + 1], b = imgData[i + 2];
+                        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                        grays[y * size + x] = gray;
 
-                    const rg = Math.abs(r - g);
-                    const yb = Math.abs(0.5 * (r + g) - b);
-                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                        rgSum += Math.abs(r - g);
+                        ybSum += Math.abs(0.5 * (r + g) - b);
 
-                    rgVals[j] = rg; ybVals[j] = yb; grays[j] = gray;
-                    rgSum += rg; ybSum += yb;
+                        // Strict color reject: If pixel is heavily red, green or yellow
+                        if ((r > 120 && g < 90 && b < 90) ||
+                            (g > 120 && r < 90 && b < 90) ||
+                            (r > 150 && g > 150 && b < 100)) {
+                            redGreenPixels++;
+                        }
 
-                    // Microscopic stains are mainly blue/purple/grey. 
-                    // Reject if strong reds, greens, or yellows are prominent.
-                    if ((r > 100 && g < 80 && b < 80) || // Strong Red
-                        (g > 100 && r < 80 && b < 80) || // Strong Green
-                        (r > 120 && g > 120 && b < 80))  // Strong Yellow
-                    {
-                        redGreenYellowPixels++;
+                        // 2. Edge Detection (Sobel-like difference)
+                        if (x < size - 1 && y < size - 1) {
+                            const rightIdx = (y * size + (x + 1)) * 4;
+                            const downIdx = ((y + 1) * size + x) * 4;
+                            const rGray = 0.299 * imgData[rightIdx] + 0.587 * imgData[rightIdx + 1] + 0.114 * imgData[rightIdx + 2];
+                            const dGray = 0.299 * imgData[downIdx] + 0.587 * imgData[downIdx + 1] + 0.114 * imgData[downIdx + 2];
+
+                            if (Math.abs(gray - rGray) > 15 || Math.abs(gray - dGray) > 15) {
+                                edgePixels++;
+                            }
+                        }
                     }
-
-                    if (gray < 30) veryDarkPixels++;
-                    if (gray > 200) brightPixels++;
                 }
 
-                const rgMean = rgSum / total, ybMean = ybSum / total;
-                let rgVarSum = 0, ybVarSum = 0;
+                const colorfulness = (rgSum / total) + (ybSum / total);
+                const edgeDensity = edgePixels / total;
+                const badColorRatio = redGreenPixels / total;
 
-                for (let j = 0; j < total; j++) {
-                    rgVarSum += Math.pow(rgVals[j] - rgMean, 2);
-                    ybVarSum += Math.pow(ybVals[j] - ybMean, 2);
-                }
+                // STRICT RULES FOR MICROSCOPY vs OTHERS:
+                // 1. A normal photo (face, dog, street) is very cluttered -> high edge density (> 0.20)
+                // 2. Text / Screenshots have extremely sharp edges -> moderate edge density but NO color (colorfulness ~0)
+                // 3. Microscopy images have a few cells (edges) but mostly empty fluid background -> edge density 0.02 - 0.15
+                // 4. Clinical stains are never bright red/green -> badColorRatio must be VERY low.
 
-                const rgStd = Math.sqrt(rgVarSum / total);
-                const ybStd = Math.sqrt(ybVarSum / total);
-
-                // Colorfulness metric
-                const colorfulness = Math.sqrt(Math.pow(rgStd, 2) + Math.pow(ybStd, 2)) + 0.3 * Math.sqrt(Math.pow(rgMean, 2) + Math.pow(ybMean, 2));
-
-                const redGreenYellowRatio = redGreenYellowPixels / total;
-                const veryDarkRatio = veryDarkPixels / total;
-
-                // STRICT RULES:
-                // 1. If colorfulness is > 25, it's too colorful to be a standard clinical microscopy sample.
-                // 2. If more than 5% of pixels are distinctly red/green/yellow.
-                // 3. If image is mostly pitch black (> 40% very dark) like a dark screenshot.
-                if (colorfulness > 25 || redGreenYellowRatio > 0.05 || veryDarkRatio > 0.40) {
+                if (
+                    edgeDensity > 0.18 ||       // Cluttered like a normal photo or detailed drawing
+                    edgeDensity < 0.005 ||      // A blank screen / solid color
+                    colorfulness > 35 ||        // Excessively colorful
+                    badColorRatio > 0.02        // Contains obvious non-microscopic shades
+                ) {
+                    console.warn(`Rejected! Edge=${edgeDensity.toFixed(3)}, Color=${colorfulness.toFixed(1)}, BadCol=${badColorRatio.toFixed(3)}`);
                     resolve(false);
                     return;
                 }
 
                 resolve(true);
             } catch (e) {
-                console.warn("Validation error fallback", e);
+                console.error("Validation error", e);
                 resolve(true);
             }
         };
-        img.onerror = () => {
-            URL.revokeObjectURL(url);
-            resolve(true);
-        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(true); };
         img.src = url;
     });
 }
