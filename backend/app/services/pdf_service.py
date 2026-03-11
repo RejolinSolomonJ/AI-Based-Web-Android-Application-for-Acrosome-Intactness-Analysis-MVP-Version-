@@ -52,7 +52,7 @@ class AcrosomeReport(FPDF):
         self.set_text_color(120, 120, 120)
         self.cell(
             0, 5,
-            "Copyright © 2025 Nexacro . All Rights Reserved. | Developed by Lin's Infotech Company Ltd.",
+            "Copyright (c) 2025 Nexacro . All Rights Reserved. | Developed by Lin's Infotech Company Ltd.",
             align="C", new_x="LMARGIN", new_y="NEXT"
         )
         self.cell(
@@ -62,8 +62,13 @@ class AcrosomeReport(FPDF):
         )
 
     # ── Helpers ──────────────────────────────────────────────────────────────
+    def clean(self, txt):
+        if not txt: return ""
+        # Helvetica only supports a limited range. Replace non-latin-1 with ?
+        return str(txt).encode('latin-1', 'replace').decode('latin-1')
 
     def section_title(self, title: str):
+        title = self.clean(title)
         self.set_font("Helvetica", "B", 11)
         self.set_text_color(25, 60, 120)
         self.set_fill_color(235, 241, 255)
@@ -72,6 +77,8 @@ class AcrosomeReport(FPDF):
         self.ln(2)
 
     def kv_row(self, label: str, value: str, col_w=60):
+        label = self.clean(label)
+        value = self.clean(value)
         self.set_font("Helvetica", "B", 10)
         self.cell(col_w, ROW_H, label + ":", new_x="END")
         self.set_font("Helvetica", "", 10)
@@ -108,9 +115,9 @@ class AcrosomeReport(FPDF):
         self.cell(COL["num"], ROW_H, str(idx), border=1, fill=True, align="C", new_x="RIGHT", new_y="TOP")
 
         # Filename (truncated)
-        name = result.original_filename
+        name = self.clean(result.original_filename)
         if len(name) > 30:
-            name = name[:27] + "…"
+            name = name[:27] + "..."
         self.cell(COL["file"], ROW_H, name, border=1, fill=True, new_x="RIGHT", new_y="TOP")
 
         # Classification (coloured)
@@ -246,7 +253,7 @@ def generate_analysis_report(
     if record.notes:
         pdf.section_title("4.  Notes")
         pdf.set_font("Helvetica", "", 10)
-        pdf.multi_cell(0, 6, record.notes)
+        pdf.multi_cell(0, 6, pdf.clean(record.notes))
         pdf.ln(4)
 
     # ══ Disclaimer ═══════════════════════════════════════════════════════════
