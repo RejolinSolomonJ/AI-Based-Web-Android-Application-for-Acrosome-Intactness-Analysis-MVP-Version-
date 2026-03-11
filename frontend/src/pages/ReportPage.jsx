@@ -71,7 +71,14 @@ export default function ReportPage() {
         try {
             const data = await generateReport(analysis.id);
             if (data.download_url) {
-                window.open(data.download_url, '_blank');
+                // Use a standard non-window-open method for better iOS compatibility
+                const link = document.createElement('a');
+                link.href = data.download_url;
+                link.download = `Acrosome_Report_${analysis.sample_id || analysis.id}.pdf`;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             }
         } catch (err) {
             alert('Failed to download PDF: ' + err.message);
