@@ -110,6 +110,8 @@ This repository includes a `render.yaml` blueprint. Simply connect your GitHub r
 ### Vercel
 The frontend is optimized for Vercel deployment using the `vercel.json` configuration provided.
 
+Deployed Link : https://www.nexacro.in/
+
 ---
 
 ## 📄 License
@@ -120,6 +122,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🤝 Contact & Support
 
-**Developed by**: LIn's Infotech Company Limited
+**Developed by**: Lin's Infotech Company Limited
 
 **Project Purpose**: MVP Version for Acrosome Intactness Analysis
