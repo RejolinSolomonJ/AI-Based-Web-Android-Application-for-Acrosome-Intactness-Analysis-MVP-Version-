@@ -64,6 +64,14 @@ class AnalysisResponse(BaseModel):
     image_results: list[ImageResultResponse]
     sample_id: Optional[str] = None
     patient_id: Optional[str] = None
+    age: Optional[int] = None
+    occupation: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    bmi: Optional[float] = None
+    is_alcoholic: Optional[bool] = False
+    is_smoker: Optional[bool] = False
+    is_using_drugs: Optional[bool] = False
     notes: Optional[str] = None
     created_at: datetime
     total_processing_time_ms: float
@@ -77,6 +85,14 @@ class AnalysisListItem(BaseModel):
     damaged_percentage: float
     sample_id: Optional[str] = None
     patient_id: Optional[str] = None
+    age: Optional[int] = None
+    occupation: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    bmi: Optional[float] = None
+    is_alcoholic: Optional[bool] = False
+    is_smoker: Optional[bool] = False
+    is_using_drugs: Optional[bool] = False
     notes: Optional[str] = None
     created_at: datetime
 

@@ -153,6 +153,22 @@ def generate_analysis_report(
     pdf.kv_row("Date & Time",      record.created_at.strftime("%Y-%m-%d  %H:%M:%S  UTC"))
     pdf.kv_row("Sample ID",        record.sample_id or "N/A")
     pdf.kv_row("Patient ID",       record.patient_id or "N/A")
+    
+    # New Patient Context
+    if record.age: pdf.kv_row("Age", str(record.age))
+    if record.occupation: pdf.kv_row("Occupation", record.occupation)
+    if record.height: pdf.kv_row("Height", f"{record.height} cm")
+    if record.weight: pdf.kv_row("Weight", f"{record.weight} kg")
+    if record.bmi: pdf.kv_row("BMI", f"{record.bmi:.1f}")
+    
+    lifestyle = []
+    if record.is_alcoholic: lifestyle.append("Alcoholic")
+    if record.is_smoker: lifestyle.append("Smoker")
+    if record.is_using_drugs: lifestyle.append("Drug User")
+    
+    if lifestyle:
+        pdf.kv_row("Lifestyle Factors", ", ".join(lifestyle))
+    
     pdf.kv_row("Total Images",     str(record.total_images))
     pdf.kv_row("Processing Time",  f"{record.total_processing_time_ms:.0f} ms")
     pdf.ln(5)

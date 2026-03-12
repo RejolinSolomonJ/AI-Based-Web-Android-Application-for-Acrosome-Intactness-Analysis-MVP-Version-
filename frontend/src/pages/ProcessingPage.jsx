@@ -45,7 +45,8 @@ export default function ProcessingPage() {
                     files,
                     patientDetails?.sampleId || '',
                     patientDetails?.patientId || '',
-                    `Patient: ${patientDetails?.patientName || 'Unknown'}`
+                    `Patient: ${patientDetails?.patientName || 'Unknown'}`,
+                    patientDetails
                 );
 
                 setApiResult(result);

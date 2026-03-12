@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, X, Zap, Grid3X3, ArrowRight, User, Hash, Calendar, FileText, Loader2 } from 'lucide-react';
+import { Upload, X, Zap, Grid3X3, ArrowRight, User, Hash, Calendar, FileText, Loader2, Briefcase, Ruler, Activity, Info } from 'lucide-react';
 import heic2any from 'heic2any';
 import './UploadPage.css';
 
@@ -64,7 +64,15 @@ export default function UploadPage() {
         patientName: '',
         patientId: '',
         sampleId: '',
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
+        age: '',
+        occupation: '',
+        height: '',
+        weight: '',
+        bmi: '',
+        isAlcoholic: false,
+        isSmoker: false,
+        isUsingDrugs: false
     });
 
     const [grids, setGrids] = useState({ 1: [], 2: [], 3: [], 4: [] });
@@ -73,8 +81,26 @@ export default function UploadPage() {
     const [converting, setConverting] = useState({});
 
     const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setPatientDetails(prev => ({ ...prev, [name]: value }));
+        const { name, value, type, checked } = e.target;
+        const val = type === 'checkbox' ? checked : value;
+        setPatientDetails(prev => {
+            const updated = { ...prev, [name]: val };
+            
+            // Auto-calculate BMI if height and weight are present
+            if (name === 'height' || name === 'weight') {
+                const h = name === 'height' ? parseFloat(value) : parseFloat(prev.height);
+                const w = name === 'weight' ? parseFloat(value) : parseFloat(prev.weight);
+                
+                if (h > 0 && w > 0) {
+                    const bmiVal = (w / ((h / 100) * (h / 100))).toFixed(1);
+                    updated.bmi = bmiVal;
+                } else {
+                    updated.bmi = '';
+                }
+            }
+            
+            return updated;
+        });
     };
 
     const handleFiles = async (gridId, files) => {
@@ -186,6 +212,66 @@ export default function UploadPage() {
                             <Calendar size={16} />
                             <input type="date" name="date" value={patientDetails.date} onChange={handleInputChange} />
                         </div>
+                    </div>
+                    <div className="form-group">
+                        <label>Age</label>
+                        <div className="input-wrap">
+                            <Activity size={16} />
+                            <input type="number" name="age" placeholder="e.g. 32" value={patientDetails.age} onChange={handleInputChange} />
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label>Occupation</label>
+                        <div className="input-wrap">
+                            <Briefcase size={16} />
+                            <input type="text" name="occupation" placeholder="e.g. Engineer" value={patientDetails.occupation} onChange={handleInputChange} />
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label>Height (cm)</label>
+                        <div className="input-wrap">
+                            <Ruler size={16} />
+                            <input type="number" name="height" placeholder="e.g. 175" value={patientDetails.height} onChange={handleInputChange} />
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label>Weight (kg)</label>
+                        <div className="input-wrap">
+                            <Activity size={16} />
+                            <input type="number" name="weight" placeholder="e.g. 70" value={patientDetails.weight} onChange={handleInputChange} />
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label>BMI</label>
+                        <div className="input-wrap readonly-input">
+                            <Info size={16} />
+                            <input type="text" name="bmi" value={patientDetails.bmi} readOnly placeholder="Auto-calculated" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Lifestyle Switches */}
+                <div className="lifestyle-switches">
+                    <div className="switch-group">
+                        <label className="switch">
+                            <input type="checkbox" name="isAlcoholic" checked={patientDetails.isAlcoholic} onChange={handleInputChange} />
+                            <span className="slider"></span>
+                        </label>
+                        <span>Alcoholic</span>
+                    </div>
+                    <div className="switch-group">
+                        <label className="switch">
+                            <input type="checkbox" name="isSmoker" checked={patientDetails.isSmoker} onChange={handleInputChange} />
+                            <span className="slider"></span>
+                        </label>
+                        <span>Smoker</span>
+                    </div>
+                    <div className="switch-group">
+                        <label className="switch">
+                            <input type="checkbox" name="isUsingDrugs" checked={patientDetails.isUsingDrugs} onChange={handleInputChange} />
+                            <span className="slider"></span>
+                        </label>
+                        <span>Using Drugs</span>
                     </div>
                 </div>
             </div>

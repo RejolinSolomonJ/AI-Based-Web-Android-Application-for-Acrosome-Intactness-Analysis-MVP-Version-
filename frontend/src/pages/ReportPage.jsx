@@ -55,6 +55,14 @@ export default function ReportPage() {
             sessionId: analysis.session_id,
             sampleId: analysis.sample_id || '—',
             patientId: analysis.patient_id || '—',
+            age: analysis.age || '—',
+            occupation: analysis.occupation || '—',
+            height: analysis.height ? `${analysis.height} cm` : '—',
+            weight: analysis.weight ? `${analysis.weight} kg` : '—',
+            bmi: analysis.bmi || '—',
+            isAlcoholic: analysis.is_alcoholic,
+            isSmoker: analysis.is_smoker,
+            isUsingDrugs: analysis.is_using_drugs,
             total: analysis.total_images,
             intact: analysis.intact_count,
             damaged: analysis.damaged_count,
@@ -188,6 +196,21 @@ export default function ReportPage() {
                             <div className="rpt-kv"><span className="rpt-kv-label"><Clock size={13} /> Date &amp; Time</span><span className="rpt-kv-val">{report.date} · {report.time}</span></div>
                             <div className="rpt-kv"><span className="rpt-kv-label"><FlaskConical size={13} /> Sample ID</span><span className="rpt-kv-val">{report.sampleId}</span></div>
                             <div className="rpt-kv"><span className="rpt-kv-label"><User size={13} /> Patient ID</span><span className="rpt-kv-val">{report.patientId}</span></div>
+                            <div className="rpt-kv"><span className="rpt-kv-label">Age</span><span className="rpt-kv-val">{report.age}</span></div>
+                            <div className="rpt-kv"><span className="rpt-kv-label">Occupation</span><span className="rpt-kv-val">{report.occupation}</span></div>
+                            <div className="rpt-kv"><span className="rpt-kv-label">Height</span><span className="rpt-kv-val">{report.height}</span></div>
+                            <div className="rpt-kv"><span className="rpt-kv-label">Weight</span><span className="rpt-kv-val">{report.weight}</span></div>
+                            <div className="rpt-kv"><span className="rpt-kv-label">BMI</span><span className="rpt-kv-val">{report.bmi}</span></div>
+                            <div className="rpt-kv">
+                                <span className="rpt-kv-label">Lifestyle</span>
+                                <span className="rpt-kv-val">
+                                    {[
+                                        report.isAlcoholic && "Alcoholic",
+                                        report.isSmoker && "Smoker",
+                                        report.isUsingDrugs && "Drugs"
+                                    ].filter(Boolean).join(", ") || "None reported"}
+                                </span>
+                            </div>
                             <div className="rpt-kv"><span className="rpt-kv-label">Total Images</span><span className="rpt-kv-val">{report.total}</span></div>
                             <div className="rpt-kv"><span className="rpt-kv-label">Processing Time</span><span className="rpt-kv-val">{report.processingMs?.toFixed(0)} ms</span></div>
                         </div>

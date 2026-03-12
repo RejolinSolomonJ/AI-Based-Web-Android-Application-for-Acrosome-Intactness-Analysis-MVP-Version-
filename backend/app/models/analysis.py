@@ -43,6 +43,17 @@ class AnalysisRecord(Document):
     notes: Optional[str] = None
     sample_id: Optional[str] = None
     patient_id: Optional[str] = None
+    
+    # ── Patient Context ──────────────────────────────────────
+    age: Optional[int] = None
+    occupation: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    bmi: Optional[float] = None
+    is_alcoholic: Optional[bool] = False
+    is_smoker: Optional[bool] = False
+    is_using_drugs: Optional[bool] = False
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     total_processing_time_ms: float = 0.0
 

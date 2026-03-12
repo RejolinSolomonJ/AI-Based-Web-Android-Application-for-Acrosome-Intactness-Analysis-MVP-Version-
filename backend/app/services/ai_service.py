@@ -30,6 +30,14 @@ async def analyze_images(
     user_id: Optional[str] = None,
     sample_id: Optional[str] = None,
     patient_id: Optional[str] = None,
+    age: Optional[int] = None,
+    occupation: Optional[str] = None,
+    height: Optional[float] = None,
+    weight: Optional[float] = None,
+    bmi: Optional[float] = None,
+    is_alcoholic: bool = False,
+    is_smoker: bool = False,
+    is_using_drugs: bool = False,
     notes: Optional[str] = None,
 ) -> AnalysisRecord:
     """
@@ -136,6 +144,14 @@ async def analyze_images(
         notes=notes,
         sample_id=sample_id,
         patient_id=patient_id,
+        age=age,
+        occupation=occupation,
+        height=height,
+        weight=weight,
+        bmi=bmi,
+        is_alcoholic=is_alcoholic,
+        is_smoker=is_smoker,
+        is_using_drugs=is_using_drugs,
         total_processing_time_ms=round(total_processing_ms, 2),
     )
 

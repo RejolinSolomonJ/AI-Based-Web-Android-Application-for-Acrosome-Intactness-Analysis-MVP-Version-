@@ -84,7 +84,7 @@ export async function getDetailedAnalytics(days = 30) {
 }
 
 // ── Analysis ────────────────────────────────
-export async function analyzeImages(files, sampleId, patientId, notes) {
+export async function analyzeImages(files, sampleId, patientId, notes, patientDetails = {}) {
     const formData = new FormData();
 
     // Support both single file and array of files
@@ -99,6 +99,16 @@ export async function analyzeImages(files, sampleId, patientId, notes) {
     if (sampleId) formData.append('sample_id', sampleId);
     if (patientId) formData.append('patient_id', patientId);
     if (notes) formData.append('notes', notes);
+    
+    // Add additional fields
+    if (patientDetails.age) formData.append('age', patientDetails.age);
+    if (patientDetails.occupation) formData.append('occupation', patientDetails.occupation);
+    if (patientDetails.height) formData.append('height', patientDetails.height);
+    if (patientDetails.weight) formData.append('weight', patientDetails.weight);
+    if (patientDetails.bmi) formData.append('bmi', patientDetails.bmi);
+    if (patientDetails.isAlcoholic !== undefined) formData.append('is_alcoholic', patientDetails.isAlcoholic);
+    if (patientDetails.isSmoker !== undefined) formData.append('is_smoker', patientDetails.isSmoker);
+    if (patientDetails.isUsingDrugs !== undefined) formData.append('is_using_drugs', patientDetails.isUsingDrugs);
 
     const response = await fetch(`${BASE_URL}/api/analysis/analyze`, {
         method: 'POST',
