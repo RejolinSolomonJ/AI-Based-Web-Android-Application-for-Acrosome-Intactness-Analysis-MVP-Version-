@@ -12,13 +12,13 @@ NexAcro is a state-of-the-art AI-powered platform designed for laboratory profes
 
 ##  Key Features
 
-- **🔬 AI-Powered Classification**: Utilizes a Convolutional Neural Network (CNN) trained on thousands of microscopic images to distinguish between "Intact" and "Damaged" acrosomes.
-- ** Batch Processing**: Upload and analyze multiple microscope images simultaneously.
-- ** Interactive Analytics**: Comprehensive dashboard showing trends, historical data, and success rates.
-- ** Automated PDF Reporting**: Generate professional, clinical-grade reports with patient details, image grids, and circular intactness graphs.
-- ** PWA & Mobile Optimized**: Built as a Progressive Web App (PWA) with specific optimizations for Android WebView and a responsive web interface.
-- ** Secure Access**: JWT-based authentication for secure data management.
-- ** Local & Cloud Deployment**: Configured for seamless deployment on Render, Vercel, and Docker environments.
+- **AI-Powered Classification**: Utilizes a Convolutional Neural Network (CNN) trained on thousands of microscopic images to distinguish between "Intact" and "Damaged" acrosomes.
+- **Batch Processing**: Upload and analyze multiple microscope images simultaneously.
+- **Interactive Analytics**: Comprehensive dashboard showing trends, historical data, and success rates.
+- **Automated PDF Reporting**: Generate professional, clinical-grade reports with patient details, image grids, and circular intactness graphs.
+- **PWA & Mobile Optimized**: Built as a Progressive Web App (PWA) with specific optimizations for Android WebView and a responsive web interface.
+- **Secure Access**: JWT-based authentication for secure data management.
+- **Local & Cloud Deployment**: Configured for seamless deployment on Render, Vercel, and Docker environments.
 
 ---
 
